@@ -18,4 +18,24 @@ connection.connect((err) => {
   console.log("Connected to MySQL database!");
 });
 
+connection.query(
+  `CREATE DATABASE IF NOT EXISTS \`${process.env.DB_NAME}\``,
+  (err) => {
+    if (err) {
+      console.error("Error creating database:", err);
+      return;
+    }
+    console.log(`Database '${process.env.DB_NAME}' is ready!`);
+
+    // Now connect to the specific database
+    connection.changeUser({ database: process.env.DB_NAME }, (err) => {
+      if (err) {
+        console.error("Error switching to database:", err);
+      } else {
+        console.log(`Connected to '${process.env.DB_NAME}' database!`);
+      }
+    });
+  }
+);
+
 export default connection;

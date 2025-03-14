@@ -1,5 +1,5 @@
 import express from "express";
-import { imageUpload, login, signup } from "../controllers/user.js";
+import { getImage, imageUpload, login, signup } from "../controllers/user.js";
 import { authentication } from "../middlewares/auth.js";
 import { upload } from "../utils/feature.js";
 
@@ -11,5 +11,6 @@ app.post("/login", login);
 app.use(authentication);
 
 app.post("/imageupload", upload.single("file"), imageUpload);
+app.get("/getimage", getImage);
 
 export default app;

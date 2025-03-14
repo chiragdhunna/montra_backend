@@ -7,6 +7,7 @@ import userRoute from "./routes/user.js";
 import bankRoute from "./routes/bank.js";
 import walletRoute from "./routes/wallet.js";
 import { errorMiddleware } from "./middlewares/error.js";
+import { authentication } from "./middlewares/auth.js";
 
 const app = express();
 const port = 3000;
@@ -14,6 +15,9 @@ const port = 3000;
 app.use(express.json());
 
 app.use("/api/v1/user", userRoute);
+
+app.use(authentication);
+
 app.use("/api/v1/bank", bankRoute);
 app.use("/api/v1/wallet", walletRoute);
 

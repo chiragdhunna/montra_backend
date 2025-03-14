@@ -59,7 +59,9 @@ const login = TryCatch((req, res, next) => {
   });
 });
 
-const imageUpload = TryCatch((req, res, next) => {});
+const imageUpload = TryCatch((req, res, next) => {
+  res.json({ success: true });
+});
 
 const logout = TryCatch((req, res, next) => {});
 

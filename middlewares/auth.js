@@ -5,7 +5,6 @@ import { ErrorHandler } from "../utils/utility.js";
 
 const authentication = TryCatch((req, res, next) => {
   const { token } = req.headers;
-  console.log(`Auth Token : ${token}`);
 
   const { userId } = jwt.decode(token);
 

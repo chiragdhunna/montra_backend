@@ -60,7 +60,17 @@ const login = TryCatch((req, res, next) => {
 });
 
 const imageUpload = TryCatch((req, res, next) => {
-  res.json({ success: true });
+  // check whether req.file contians the file
+  // if not multer is failed to parse so notify the client
+  if (!req.file) {
+    // console.error({ req });
+    res.status(413).send(`File not uploaded!, Please
+    					attach jpeg file under 5 MB`);
+    // res.json(JSON.parse(req));
+    return;
+  }
+  // successfull completion
+  res.status(201).send(`Files uploaded successfully : ${req.file.path}`);
 });
 
 const logout = TryCatch((req, res, next) => {});

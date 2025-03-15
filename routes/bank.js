@@ -12,10 +12,10 @@ const app = express.Router();
 
 app.use(authentication);
 
-app.post("/createaccount", createBankAccount);
-app.delete("/deleteaccount", deleteBankAccount);
-app.post("/updateaccount", updateBankAccount);
-app.get("/getaccount", getAllBankAccounts);
+app.post("/create", createBankAccount);
+app.delete("/delete", deleteBankAccount);
+app.post("/update", updateBankAccount);
+app.get("/get", getAllBankAccounts);
 app.get("/balance", getBalance);
 
 export default app;

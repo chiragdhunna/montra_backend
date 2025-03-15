@@ -1,44 +1,100 @@
-import { query } from "express";
 import connection from "../database/db.js";
 import { TryCatch } from "../middlewares/error.js";
+import { ErrorHandler } from "../utils/utility.js";
 
-const createWalletAccount = TryCatch((req, res, err, next) => {
-  const user = req.user;
+const createWallet = TryCatch(async (req, res, next, err) => {
+  const { user } = req;
+  const { name, amount } = req.body;
 
-  query = ``;
+  if (!name) {
+    return next(new ErrorHandler("Wallet name is required", 400));
+  }
 
-  connection.query(query, (err, result) => {});
+  const walletCheckQuery = `SELECT * FROM wallet WHERE name = ? AND user_id = ?`;
+
+  const [result] = await connection
+    .promise()
+    .query(walletCheckQuery, [name, user.user_id]);
+
+  if (result.length !== 0) {
+    return next(new ErrorHandler("Wallet with this name already exists", 409));
+  }
+
+  const insertQuery = `INSERT INTO wallet (name, amount, user_id) VALUES (?, ?, ?)`;
+
+  const [insertResult] = await connection
+    .promise()
+    .query(insertQuery, [name, amount || 0, user.user_id]);
+
+  res.json({ success: insertResult });
 });
 
-const deleteWalletAccount = TryCatch((req, res, err, next) => {
-  // Account Number to delete
+const deleteWallet = TryCatch(async (req, res, next, err) => {
   const user = req.user;
+  const { walletName } = req.body;
 
-  query = ``;
+  if (!walletName) {
+    return next(new ErrorHandler("Wallet name is required", 400));
+  }
 
-  connection.query(query, (err, result) => {});
+  const query = `DELETE FROM wallet WHERE user_id = ? AND name = ?`;
+
+  const [result] = await connection
+    .promise()
+    .query(query, [user.user_id, walletName]);
+
+  if (result.affectedRows === 0) {
+    return next(new ErrorHandler("No wallet found to delete", 404));
+  }
+
+  res.send("Wallet Deleted Successfully");
 });
 
-const updateWalletAccount = TryCatch((req, res, err, next) => {
-  // Account Number to update
+const updateWallet = TryCatch(async (req, res, next, err) => {
   const user = req.user;
+  const { amount, walletName } = req.body;
 
-  query = ``;
+  if (!walletName) {
+    return next(new ErrorHandler("Wallet name is required", 400));
+  }
 
-  connection.query(query, (err, result) => {});
+  const query = `UPDATE wallet SET amount = ? WHERE user_id = ? AND name = ?`;
+
+  const result = await connection
+    .promise()
+    .query(query, [amount, user.user_id, walletName]);
+
+  if (result[0].affectedRows === 0) {
+    return next(new ErrorHandler("Wallet Update Unsuccessful", 500));
+  }
+
+  res.send(result[0]);
 });
 
-const getAllWalletAccounts = TryCatch((req, res, err, next) => {
+const getAllWallets = TryCatch(async (req, res, next, err) => {
   const user = req.user;
 
-  query = `select * form wallet where user_id = ?`;
+  const query = `SELECT * FROM wallet WHERE user_id = ?`;
 
-  connection.query(query, (err, result) => {});
+  const result = await connection.promise().query(query, [user.user_id]);
+
+  res.send(result[0]);
+});
+
+const getWalletBalance = TryCatch(async (req, res, next, err) => {
+  const user = req.user;
+
+  const query = `SELECT SUM(amount) as balance FROM wallet WHERE user_id = ?`;
+
+  const result = await connection.promise().query(query, [user.user_id]);
+
+  res.send(result[0]);
 });
 
 export {
-  createWalletAccount,
-  deleteWalletAccount,
-  updateWalletAccount,
-  getAllWalletAccounts,
+  createWallet,
+  deleteWallet,
+  updateWallet,
+  getAllWallets,
+  getWalletBalance,
 };

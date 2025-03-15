@@ -6,7 +6,7 @@ import { ErrorHandler } from "../utils/utility.js";
 const addIncome = TryCatch(async (req, res, next, err) => {
   const user = req.user;
 
-  const { amount, source } = req.body;
+  const { amount, source, description } = req.body;
 
   const isValidSourceName = (name) => incomeSource.includes(name);
 
@@ -27,13 +27,11 @@ const addIncome = TryCatch(async (req, res, next, err) => {
 
   const attachment = req.file.path;
 
-  const query = `insert into income (amount, source, attachment, user_id) values (?,?,?,?)`;
-
-  console.log({ attachment });
+  const query = `insert into income (amount, source, attachment, description user_id) values (?,?,?,?,?)`;
 
   const results = await connection
     .promise()
-    .query(query, [amount, source, attachment, user.user_id]);
+    .query(query, [amount, source, attachment, description, user.user_id]);
 
   res.send({ results });
 });
@@ -75,9 +73,9 @@ const getIncome = TryCatch(async (req, res, next, err) => {
 
   const query = `select SUM(amount) as income from income where user_id = ?`;
 
-  const results = connection.promise().query(query, [user.user_id]);
+  const results = await connection.promise().query(query, [user.user_id]);
 
-  res.send({ results });
+  res.send(results[0]);
 });
 
 export { addIncome, updateIncome, deleteIncome, getIncome };

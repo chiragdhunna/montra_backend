@@ -7,6 +7,7 @@ import path from "path";
 import userRoute from "./routes/user.js";
 import bankRoute from "./routes/bank.js";
 import walletRoute from "./routes/wallet.js";
+import incomeRoute from "./routes/income.js";
 import { errorMiddleware } from "./middlewares/error.js";
 import { authentication } from "./middlewares/auth.js";
 import fs from "fs";
@@ -28,6 +29,7 @@ app.use(authentication);
 
 app.use("/api/v1/bank", bankRoute);
 app.use("/api/v1/wallet", walletRoute);
+app.use("/api/v1/income", incomeRoute);
 
 app.get("/", (req, res) => {
   connection.query("show databases", (err, results) => {

@@ -11,14 +11,12 @@ const addIncome = TryCatch(async (req, res, next, err) => {
   const isValidSourceName = (name) => incomeSource.includes(name);
 
   if (!isValidSourceName(source)) {
-    console.error(source);
     return next(new ErrorHandler("Invalid income source", 400));
   }
 
   // check whether req.file contians the file
   // if not multer is failed to parse so notify the client
   if (!req.file) {
-    // console.error({ req });
     res.status(413).send(`File not uploaded!, Please
     					attach jpeg file under 5 MB`);
     // res.json(JSON.parse(req));

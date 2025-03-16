@@ -11,7 +11,6 @@ const addExpense = TryCatch(async (req, res, next, err) => {
   const isValidSourceName = (name) => expenseSource.includes(name);
 
   if (!isValidSourceName(source)) {
-    console.error(source);
     return next(new ErrorHandler("Invalid expense source", 400));
   }
 

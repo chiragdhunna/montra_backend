@@ -13,7 +13,7 @@ import budgetRoute from "./routes/budget.js";
 import { errorMiddleware } from "./middlewares/error.js";
 import { authentication } from "./middlewares/auth.js";
 import fs from "fs";
-import { specs, swaggerUi } from './swagger/swagger.js';
+import { specs, swaggerUi } from "./swagger/swagger.js";
 const __dirname = path.resolve();
 const uploadDir = path.join(__dirname, "uploads");
 
@@ -26,7 +26,7 @@ const port = 3000;
 
 app.use(express.json());
 
-app.use('/api/v1/docs', swaggerUi.serve, swaggerUi.setup(specs));
+app.use("/api/v1/docs", swaggerUi.serve, swaggerUi.setup(specs));
 
 app.use("/api/v1/user", userRoute);
 
@@ -40,5 +40,5 @@ app.use("/api/v1/budget", authentication, budgetRoute);
 app.use(errorMiddleware);
 
 app.listen(port, () => {
-  console.log(`Example app listening on port ${port}`);
+  console.log(`app listening on port ${port}`);
 });

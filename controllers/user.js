@@ -21,7 +21,7 @@ const signup = TryCatch(async (req, res, next) => {
     [name, email, ecryptedPassword, imgUrl, pin],
     (err, result) => {
       if (err) {
-        console.error("Error: ", err);
+        "Error: ", err;
         return next(new ErrorHandler("Database error", 500));
       } else {
         const emailQuery = "SELECT * FROM user WHERE email = ?";
@@ -61,11 +61,6 @@ const login = TryCatch((req, res, next) => {
       if (err || !hash)
         return next(new ErrorHandler("Incorrect Password", 401));
 
-      console.log({
-        password: password,
-        hash: hash,
-      });
-
       // ✅ Generate JWT
       const token = jwt.sign(
         { userId: user.user_id, email: user.email },
@@ -81,7 +76,7 @@ const imageUpload = TryCatch((req, res, next) => {
   // check whether req.file contians the file
   // if not multer is failed to parse so notify the client
   if (!req.file) {
-    // console.error({ req });
+    //({ req });
     res.status(413).send(`File not uploaded!, Please
     					attach jpeg file under 5 MB`);
     // res.json(JSON.parse(req));
@@ -136,7 +131,7 @@ const exportData = TryCatch(async (req, res, next) => {
   const user = req.user;
 
   if (!user) {
-    console.error(`user : ${user}`);
+    `user : ${user}`;
     return next(new ErrorHandler("User not authenticated", 401));
   }
   console.log(`user : ${user}`);
@@ -247,7 +242,7 @@ const exportData = TryCatch(async (req, res, next) => {
 
   connection.query(query, queryParams, async (err, results) => {
     if (err) {
-      console.error("Export query error:", err);
+      "Export query error:", err;
       return next(new ErrorHandler("Error fetching data", 500));
     }
 
@@ -270,7 +265,7 @@ const exportData = TryCatch(async (req, res, next) => {
         return next(new ErrorHandler("Invalid export format", 400));
       }
     } catch (exportError) {
-      console.error("Export generation error:", exportError);
+      "Export generation error:", exportError;
       return next(new ErrorHandler("Error generating export file", 500));
     }
   });
@@ -307,11 +302,11 @@ const generateCSV = async (data, filepath, res, dataType) => {
     `${dataType}_export_${Date.now()}.csv`,
     (err) => {
       if (err) {
-        console.error("Download error:", err);
+        "Download error:", err;
         try {
           fs.unlinkSync(`${fullFilepath}.csv`);
         } catch (unlinkErr) {
-          console.error("Error deleting file:", unlinkErr);
+          "Error deleting file:", unlinkErr;
         }
       }
     }
@@ -328,7 +323,7 @@ const generatePDF = async (data, filepath, res, dataType, req) => {
   });
 
   if (!req) {
-    console.error("Error: req is undefined in generatePDF function");
+    ("Error: req is undefined in generatePDF function");
     return res.status(500).json({
       success: false,
       message: "Internal Server Error: Request object is missing",
@@ -657,18 +652,18 @@ const generatePDF = async (data, filepath, res, dataType, req) => {
         `${dataType}_export_${Date.now()}.pdf`,
         (err) => {
           if (err) {
-            console.error("Download error:", err);
+            "Download error:", err;
             try {
               fs.unlinkSync(`${fullFilepath}.pdf`);
             } catch (unlinkErr) {
-              console.error("Error deleting file:", unlinkErr);
+              "Error deleting file:", unlinkErr;
             }
           }
         }
       );
     });
   } catch (error) {
-    console.error("Error generating PDF:", error);
+    "Error generating PDF:", error;
     return res.status(500).json({
       success: false,
       message: "Error generating PDF report",
@@ -764,7 +759,7 @@ function queryDatabase(query, params) {
   return new Promise((resolve, reject) => {
     connection.query(query, params, (err, results) => {
       if (err) {
-        console.error("Database query error:", err);
+        "Database query error:", err;
         reject(new Error(`Database query failed: ${err.message}`));
       } else {
         // Handle empty results by returning an empty array instead of null

@@ -162,6 +162,55 @@ app.post("/imageupload", upload.single("file"), imageUpload);
  */
 app.get("/getimage", getImage);
 
-app.get("/export", exportData);
+/**
+ * @swagger
+ * /api/v1/user/export:
+ *   post:
+ *     summary: Export user's financial data
+ *     tags: [Users]
+ *     security:
+ *       - ApiKeyAuth: []
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               dataType:
+ *                 type: string
+ *                 enum: [all, expense, income, transfer, budget]
+ *                 default: all
+ *                 description: Type of data to export
+ *               dateRange:
+ *                 type: string
+ *                 enum: [1month, 6months, lastQuarter, lastYear]
+ *                 default: 1month
+ *                 description: Time period for the export
+ *               format:
+ *                 type: string
+ *                 enum: [csv, pdf]
+ *                 default: csv
+ *                 description: Export file format
+ *     responses:
+ *       200:
+ *         description: File downloaded successfully
+ *         content:
+ *           application/pdf:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *           text/csv:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *       401:
+ *         description: User not authenticated
+ *       404:
+ *         description: No data available for export
+ *       500:
+ *         description: Error generating export file
+ */
+app.post("/export", exportData);
 
 export default app;

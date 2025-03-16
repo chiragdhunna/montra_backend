@@ -134,7 +134,12 @@ const exportData = TryCatch(async (req, res, next) => {
   const { dataType = "all", dateRange = "30days", format = "csv" } = req.body;
 
   const user = req.user;
-  if (!user) return next(new ErrorHandler("User not authenticated", 401));
+
+  if (!user) {
+    console.error(`user : ${user}`);
+    return next(new ErrorHandler("User not authenticated", 401));
+  }
+  console.log(`user : ${user}`);
 
   // Determine date range
   let dateQuery = "";
@@ -336,150 +341,438 @@ const generatePDF = async (data, filepath, res, dataType, req) => {
     fs.mkdirSync(path.dirname(fullFilepath), { recursive: true });
   }
 
-  // Retrieve user from authentication middleware
-  const user = req.user || { name: "chirag", email: "chirag@gmail.com" };
+  // Get the user ID from the request
+  const userId = req.user ? req.user.user_id : null;
+  console.log(`userId : ${userId}`);
 
-  const doc = new PDFDocument({ margin: 50, autoFirstPage: true });
-  const writeStream = fs.createWriteStream(`${fullFilepath}.pdf`);
-  doc.pipe(writeStream);
+  if (!userId) {
+    return res.status(401).json({
+      success: false,
+      message: "User not authenticated",
+    });
+  }
 
-  // Define a consistent starting position for all sections
-  const startX = 50;
+  // Fetch all necessary data from the database
+  try {
+    // First, fetch user information
+    const userQuery = "SELECT name, email FROM user WHERE user_id = ?";
+    const userResult = await queryDatabase(userQuery, [userId]);
+    const user = userResult[0] || { name: "User", email: "user@example.com" };
 
-  // Cover Page - Title
-  doc
-    .fontSize(18)
-    .font("Helvetica-Bold")
-    .text("Comprehensive Financial Report", { align: "center" });
-  doc.moveDown(2);
+    // Fetch summary data
+    const incomeQuery =
+      "SELECT SUM(amount) as totalIncome FROM income WHERE user_id = ?";
+    const incomeResult = await queryDatabase(incomeQuery, [userId]);
+    const totalIncome = incomeResult[0].totalIncome || 0;
 
-  // User Information
-  doc.fontSize(14).font("Helvetica-Bold").text("User Information", startX);
-  doc.moveDown(0.5);
-  doc.fontSize(12).font("Helvetica").text(`Name: ${user.name}`, startX);
-  doc.text(`Email: ${user.email}`, startX);
-  doc.text(`Report Type: Full Financial Report`, startX);
-  doc.text(`Date Range: January 1, 2025 - March 31, 2025`, startX);
-  doc.text(`Generated On: 2025-03-16`, startX);
-  doc.moveDown(2);
+    const expenseQuery =
+      "SELECT SUM(amount) as totalExpense FROM expense WHERE user_id = ?";
+    const expenseResult = await queryDatabase(expenseQuery, [userId]);
+    const totalExpense = expenseResult[0].totalExpense || 0;
 
-  // Financial Summary
-  doc.fontSize(14).font("Helvetica-Bold").text("Financial Summary", startX);
-  doc.moveDown(0.5);
-  doc.fontSize(12).font("Helvetica").text(`Total Income: $50,000`, startX);
-  doc.text(`Total Expenses: $35,000`, startX);
-  doc.text(`Net Balance: $15,000`, startX);
-  doc.text(`Total Transfers: $7,200`, startX);
-  doc.text(`Total Budgets: $20,000`, startX);
-  doc.moveDown(2);
+    const transferQuery =
+      "SELECT SUM(amount) as totalTransfer FROM transfer WHERE user_id = ?";
+    const transferResult = await queryDatabase(transferQuery, [userId]);
+    const totalTransfer = transferResult[0].totalTransfer || 0;
 
-  // Budgets Overview - Table format
-  doc.fontSize(14).font("Helvetica-Bold").text("Budgets Overview", startX);
-  doc.moveDown(0.5);
+    const budgetQuery =
+      "SELECT SUM(total_budget) as totalBudget FROM budget WHERE user_id = ?";
+    const budgetResult = await queryDatabase(budgetQuery, [userId]);
+    const totalBudget = budgetResult[0].totalBudget || 0;
 
-  // Budgets table
-  const budgetHeaders = [
-    "Budget Name",
-    "Total Budget",
-    "Current Spent",
-    "Remaining",
-  ];
-  const budgetRows = [
-    ["Monthly Expenses", "$5,000", "$3,000", "$2,000"],
-    ["Vacation Fund", "$3,000", "$500", "$2,500"],
-    ["Emergency Savings", "$10,000", "$1,200", "$8,800"],
-  ];
+    // Fetch detailed data
+    const budgetsQuery =
+      "SELECT name, total_budget, current, (total_budget - current) as remaining FROM budget WHERE user_id = ? ORDER BY created_at DESC LIMIT 10";
+    const budgetsResult = await queryDatabase(budgetsQuery, [userId]);
 
-  createTable(doc, budgetHeaders, budgetRows);
-  doc.moveDown(1);
+    const incomeDetailsQuery =
+      "SELECT DATE_FORMAT(created_at, '%d-%m-%Y') as date, amount, source, description FROM income WHERE user_id = ? ORDER BY created_at DESC LIMIT 10";
+    const incomeDetailsResult = await queryDatabase(incomeDetailsQuery, [
+      userId,
+    ]);
 
-  // Income Details - Table format with left-aligned title
-  doc.fontSize(14).font("Helvetica-Bold").text("Income Details", startX);
-  doc.moveDown(0.5);
+    const expenseDetailsQuery =
+      "SELECT DATE_FORMAT(created_at, '%d-%m-%Y') as date, amount, source, description FROM expense WHERE user_id = ? ORDER BY created_at DESC LIMIT 10";
+    const expenseDetailsResult = await queryDatabase(expenseDetailsQuery, [
+      userId,
+    ]);
 
-  const incomeHeaders = ["Date", "Amount", "Source", "Description"];
-  const incomeRows = [
-    ["01-01-2025", "$3,000", "Bank", "Salary"],
-    ["15-02-2025", "$2,000", "Wallet", "Freelance"],
-    ["10-03-2025", "$5,000", "Bank", "Bonus"],
-    ["20-03-2025", "$4,000", "Cash", "Consulting"],
-  ];
+    const transferDetailsQuery =
+      "SELECT DATE_FORMAT(created_at, '%d-%m-%Y') as date, amount, sender, receiver FROM transfer WHERE user_id = ? ORDER BY created_at DESC LIMIT 10";
+    const transferDetailsResult = await queryDatabase(transferDetailsQuery, [
+      userId,
+    ]);
 
-  createTable(doc, incomeHeaders, incomeRows);
-  doc.moveDown(1);
+    const walletQuery =
+      "SELECT name, amount, wallet_number FROM wallet WHERE user_id = ?";
+    const walletResult = await queryDatabase(walletQuery, [userId]);
 
-  // Add a new page for the rest of the content
-  doc.addPage();
+    const bankQuery =
+      "SELECT name, amount, account_number FROM bank WHERE user_id = ?";
+    const bankResult = await queryDatabase(bankQuery, [userId]);
 
-  // Expense Details - Table format
-  doc.fontSize(14).font("Helvetica-Bold").text("Expense Details", startX);
-  doc.moveDown(0.5);
+    // Now generate the PDF with the actual data
+    const doc = new PDFDocument({
+      margin: 50,
+      size: "A4",
+      bufferPages: true,
+    });
 
-  const expenseHeaders = ["Date", "Amount", "Source", "Description"];
-  const expenseRows = [
-    ["05-01-2025", "$1,500", "Credit Card", "Groceries"],
-    ["10-02-2025", "$2,000", "Bank", "Rent"],
-    ["15-02-2025", "$1,200", "Cash", "Shopping"],
-    ["20-03-2025", "$800", "Wallet", "Dining"],
-  ];
+    const writeStream = fs.createWriteStream(`${fullFilepath}.pdf`);
+    doc.pipe(writeStream);
 
-  createTable(doc, expenseHeaders, expenseRows);
-  doc.moveDown(1);
+    // Define a consistent starting position for all sections
+    const startX = 50;
+    const pageWidth = doc.page.width - 100; // Account for margins
 
-  // Transfer Details - Table format
-  doc.fontSize(14).font("Helvetica-Bold").text("Transfer Details", startX);
-  doc.moveDown(0.5);
+    // Cover Page - Title
+    doc
+      .fontSize(22)
+      .font("Helvetica-Bold")
+      .text("Comprehensive Financial Report", { align: "center" });
+    doc.moveDown(2);
 
-  const transferHeaders = ["Date", "Amount", "Sender", "Receiver"];
-  const transferRows = [
-    ["10-02-2025", "$500", "John", "Mike"],
-    ["12-02-2025", "$700", "Wallet", "Bank"],
-    ["18-03-2025", "$1,000", "Bank", "Savings"],
-  ];
-
-  createTable(doc, transferHeaders, transferRows);
-  doc.moveDown(1);
-
-  // Wallet Overview - Table format
-  doc.fontSize(14).font("Helvetica-Bold").text("Wallet Overview", startX);
-  doc.moveDown(0.5);
-
-  const walletHeaders = ["Wallet Name", "Amount", "Wallet Number"];
-  const walletRows = [
-    ["Main Wallet", "$2,500", "XYZ-123-456"],
-    ["Savings Wallet", "$4,000", "DEF-789-654"],
-  ];
-
-  createTable(doc, walletHeaders, walletRows);
-  doc.moveDown(1);
-
-  // Bank Overview - Table format
-  doc.fontSize(14).font("Helvetica-Bold").text("Bank Overview", startX);
-  doc.moveDown(0.5);
-
-  const bankHeaders = ["Bank Name", "Amount", "Account Number"];
-  const bankRows = [
-    ["Chase", "$5,000", "ABC-987-654"],
-    ["Bank of America", "$10,000", "XYZ-321-654"],
-  ];
-
-  createTable(doc, bankHeaders, bankRows);
-
-  doc.end();
-
-  writeStream.on("finish", () => {
-    res.download(
-      `${fullFilepath}.pdf`,
-      `${dataType}_export_${Date.now()}.pdf`,
-      (err) => {
-        if (err) {
-          console.error("Download error:", err);
-          fs.unlinkSync(`${fullFilepath}.pdf`);
-        }
-      }
+    // User Information
+    doc.fontSize(16).font("Helvetica-Bold").text("User Information", startX);
+    doc.moveDown(0.5);
+    doc.fontSize(12).font("Helvetica").text(`Name: ${user.name}`, startX);
+    doc.text(`Email: ${user.email}`, startX);
+    doc.text(
+      `Report Type: ${
+        dataType.charAt(0).toUpperCase() + dataType.slice(1)
+      } Financial Report`,
+      startX
     );
-  });
+
+    // Current date for the report
+    const currentDate = new Date();
+    const options = { year: "numeric", month: "long", day: "numeric" };
+    const formattedDate = currentDate.toLocaleDateString("en-US", options);
+    doc.text(`Generated On: ${formattedDate}`, startX);
+    doc.moveDown(2);
+
+    // Financial Summary
+    doc.fontSize(16).font("Helvetica-Bold").text("Financial Summary", startX);
+    doc.moveDown(0.5);
+
+    // Create a summary table instead of simple text
+    const summaryHeaders = ["Metric", "Amount"];
+    const summaryRows = [
+      ["Total Income", `$${formatMoney(totalIncome)}`],
+      ["Total Expenses", `$${formatMoney(totalExpense)}`],
+      ["Net Balance", `$${formatMoney(totalIncome - totalExpense)}`],
+      ["Total Transfers", `$${formatMoney(totalTransfer)}`],
+      ["Total Budgets", `$${formatMoney(totalBudget)}`],
+    ];
+
+    createTable(doc, summaryHeaders, summaryRows);
+    doc.moveDown(2);
+
+    // Budgets Overview - Table format
+    doc.fontSize(16).font("Helvetica-Bold").text("Budgets Overview", startX);
+    doc.moveDown(0.5);
+
+    // Budgets table
+    const budgetHeaders = [
+      "Budget Name",
+      "Total Budget",
+      "Current Spent",
+      "Remaining",
+    ];
+    const budgetRows = budgetsResult.map((budget) => [
+      budget.name,
+      `$${formatMoney(budget.total_budget)}`,
+      `$${formatMoney(budget.current)}`,
+      `$${formatMoney(budget.remaining)}`,
+    ]);
+
+    createTable(
+      doc,
+      budgetHeaders,
+      budgetRows.length > 0
+        ? budgetRows
+        : [["No budget data available", "", "", ""]]
+    );
+    doc.moveDown(2);
+
+    // Check if we need a new page
+    if (doc.y > doc.page.height - 200) {
+      doc.addPage();
+    }
+
+    // Income Details - Table format
+    doc.fontSize(16).font("Helvetica-Bold").text("Income Details", startX);
+    doc.moveDown(0.5);
+
+    const incomeHeaders = ["Date", "Amount", "Source", "Description"];
+    const incomeRows = incomeDetailsResult.map((income) => [
+      income.date,
+      `$${formatMoney(income.amount)}`,
+      income.source || "N/A",
+      income.description || "N/A",
+    ]);
+
+    createTable(
+      doc,
+      incomeHeaders,
+      incomeRows.length > 0
+        ? incomeRows
+        : [["No income data available", "", "", ""]]
+    );
+    doc.moveDown(2);
+
+    // Check if we need a new page
+    if (doc.y > doc.page.height - 200) {
+      doc.addPage();
+    }
+
+    // Expense Details - Table format
+    doc.fontSize(16).font("Helvetica-Bold").text("Expense Details", startX);
+    doc.moveDown(0.5);
+
+    const expenseHeaders = ["Date", "Amount", "Source", "Description"];
+    const expenseRows = expenseDetailsResult.map((expense) => [
+      expense.date,
+      `$${formatMoney(expense.amount)}`,
+      expense.source || "N/A",
+      expense.description || "N/A",
+    ]);
+
+    createTable(
+      doc,
+      expenseHeaders,
+      expenseRows.length > 0
+        ? expenseRows
+        : [["No expense data available", "", "", ""]]
+    );
+    doc.moveDown(2);
+
+    // Check if we need a new page
+    if (doc.y > doc.page.height - 200) {
+      doc.addPage();
+    }
+
+    // Transfer Details - Table format
+    doc.fontSize(16).font("Helvetica-Bold").text("Transfer Details", startX);
+    doc.moveDown(0.5);
+
+    const transferHeaders = ["Date", "Amount", "Sender", "Receiver"];
+    const transferRows = transferDetailsResult.map((transfer) => [
+      transfer.date,
+      `$${formatMoney(transfer.amount)}`,
+      transfer.sender || "N/A",
+      transfer.receiver || "N/A",
+    ]);
+
+    createTable(
+      doc,
+      transferHeaders,
+      transferRows.length > 0
+        ? transferRows
+        : [["No transfer data available", "", "", ""]]
+    );
+    doc.moveDown(2);
+
+    // Check if we need a new page
+    if (doc.y > doc.page.height - 200) {
+      doc.addPage();
+    }
+
+    // Wallet Overview - Table format
+    doc.fontSize(16).font("Helvetica-Bold").text("Wallet Overview", startX);
+    doc.moveDown(0.5);
+
+    const walletHeaders = ["Wallet Name", "Amount", "Wallet Number"];
+    const walletRows = walletResult.map((wallet) => [
+      wallet.name,
+      `$${formatMoney(wallet.amount)}`,
+      wallet.wallet_number,
+    ]);
+
+    createTable(
+      doc,
+      walletHeaders,
+      walletRows.length > 0
+        ? walletRows
+        : [["No wallet data available", "", ""]]
+    );
+    doc.moveDown(2);
+
+    // Check if we need a new page
+    if (doc.y > doc.page.height - 200) {
+      doc.addPage();
+    }
+
+    // Bank Overview - Table format
+    doc.fontSize(16).font("Helvetica-Bold").text("Bank Overview", startX);
+    doc.moveDown(0.5);
+
+    const bankHeaders = ["Bank Name", "Amount", "Account Number"];
+    const bankRows = bankResult.map((bank) => [
+      bank.name,
+      `$${formatMoney(bank.amount)}`,
+      bank.account_number,
+    ]);
+
+    createTable(
+      doc,
+      bankHeaders,
+      bankRows.length > 0 ? bankRows : [["No bank data available", "", ""]]
+    );
+
+    // Add page numbers and headers to all pages
+    const totalPages = doc.bufferedPageRange().count;
+
+    for (let i = 0; i < totalPages; i++) {
+      doc.switchToPage(i);
+
+      // Add header
+      doc
+        .fontSize(10)
+        .font("Helvetica")
+        .text("Comprehensive Financial Report", 50, 20, {
+          align: "center",
+          width: pageWidth,
+        });
+      doc
+        .moveTo(50, 35)
+        .lineTo(pageWidth + 50, 35)
+        .stroke();
+
+      // Add footer with page number
+      doc
+        .fontSize(10)
+        .font("Helvetica")
+        .text(`Page ${i + 1} of ${totalPages}`, 50, doc.page.height - 30, {
+          align: "center",
+          width: pageWidth,
+        });
+    }
+
+    doc.end();
+
+    writeStream.on("finish", () => {
+      res.download(
+        `${fullFilepath}.pdf`,
+        `${dataType}_export_${Date.now()}.pdf`,
+        (err) => {
+          if (err) {
+            console.error("Download error:", err);
+            try {
+              fs.unlinkSync(`${fullFilepath}.pdf`);
+            } catch (unlinkErr) {
+              console.error("Error deleting file:", unlinkErr);
+            }
+          }
+        }
+      );
+    });
+  } catch (error) {
+    console.error("Error generating PDF:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error generating PDF report",
+    });
+  }
 };
+
+// Helper function to format money values
+function formatMoney(amount) {
+  // Handle null or undefined values
+  if (amount === null || amount === undefined) {
+    return "0.00";
+  }
+
+  // Convert to number if it's a string
+  const numAmount = typeof amount === "string" ? parseFloat(amount) : amount;
+
+  // Format with commas for thousands and two decimal places
+  return numAmount.toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+function addPageElements(doc, pageNumber, totalPages) {
+  const pageWidth = doc.page.width - 100; // Account for margins
+
+  // Add header
+  doc
+    .fontSize(10)
+    .font("Helvetica")
+    .text("Comprehensive Financial Report", 50, 20, {
+      align: "center",
+      width: pageWidth,
+    });
+  doc
+    .moveTo(50, 35)
+    .lineTo(pageWidth + 50, 35)
+    .stroke();
+
+  // Add footer with page number
+  doc
+    .fontSize(10)
+    .font("Helvetica")
+    .text(`Page ${pageNumber} of ${totalPages}`, 50, doc.page.height - 30, {
+      align: "center",
+      width: pageWidth,
+    });
+
+  // Reset cursor position for content
+  doc.y = 50;
+
+  return doc;
+}
+
+function formatDateRange(dateRange) {
+  const currentDate = new Date();
+  let startDate = new Date();
+
+  switch (dateRange) {
+    case "lastYear":
+      startDate.setFullYear(currentDate.getFullYear() - 1);
+      break;
+    case "lastQuarter":
+      startDate.setMonth(currentDate.getMonth() - 3);
+      break;
+    case "6months":
+      startDate.setMonth(currentDate.getMonth() - 6);
+      break;
+    case "1month":
+    default:
+      startDate.setMonth(currentDate.getMonth() - 1);
+      break;
+  }
+
+  const formatDate = (date) => {
+    return date.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+  };
+
+  return {
+    startDate: startDate,
+    endDate: currentDate,
+    formatted: `${formatDate(startDate)} - ${formatDate(currentDate)}`,
+  };
+}
+
+// Helper function to run database queries with promises
+function queryDatabase(query, params) {
+  return new Promise((resolve, reject) => {
+    connection.query(query, params, (err, results) => {
+      if (err) {
+        console.error("Database query error:", err);
+        reject(new Error(`Database query failed: ${err.message}`));
+      } else {
+        // Handle empty results by returning an empty array instead of null
+        resolve(results || []);
+      }
+    });
+  });
+}
 
 // Helper function to create tables with grid lines
 function createTable(doc, headers, rows) {
@@ -488,25 +781,19 @@ function createTable(doc, headers, rows) {
   const colWidth = tableWidth / colCount;
   const startX = 50;
   let y = doc.y;
-  const rowHeight = 30; // Increased row height for multi-line content
+  const rowHeight = 30;
 
-  // Draw table headers with borders
+  // Draw table headers with proper alignment and spacing
   doc.font("Helvetica-Bold");
 
-  // Draw header row border
-  doc.rect(startX, y, tableWidth, rowHeight).stroke();
+  // Draw header background
+  doc
+    .rect(startX, y, tableWidth, rowHeight)
+    .fillAndStroke("#f0f0f0", "#000000");
 
-  // Draw header column separators
-  for (let i = 1; i < colCount; i++) {
-    doc
-      .moveTo(startX + i * colWidth, y)
-      .lineTo(startX + i * colWidth, y + rowHeight)
-      .stroke();
-  }
-
-  // Draw header text
+  // Draw header text with proper positioning
   headers.forEach((header, i) => {
-    doc.text(header, startX + i * colWidth + 5, y + 10, {
+    doc.fillColor("#000000").text(header, startX + i * colWidth + 5, y + 10, {
       width: colWidth - 10,
       align: "left",
     });
@@ -520,47 +807,44 @@ function createTable(doc, headers, rows) {
 
   // Draw data rows
   rows.forEach((row, rowIndex) => {
-    // Check if this row contains "Emergency Savings" - special case
-    const isEmergencySavings = row.some((cell) => cell === "Emergency Savings");
-    const currentRowHeight = isEmergencySavings ? rowHeight * 1.2 : rowHeight;
+    // Alternate row colors for better readability
+    const fillColor = rowIndex % 2 === 0 ? "#ffffff" : "#f9f9f9";
 
-    // Draw row border
-    doc.rect(startX, y, tableWidth, currentRowHeight).stroke();
+    // Draw row background
+    doc
+      .rect(startX, y, tableWidth, rowHeight)
+      .fillAndStroke(fillColor, "#000000");
 
-    // Draw column separators
-    for (let i = 1; i < colCount; i++) {
-      doc
-        .moveTo(startX + i * colWidth, y)
-        .lineTo(startX + i * colWidth, y + currentRowHeight)
-        .stroke();
-    }
-
-    // Draw cell text
+    // Draw cell text with proper positioning
     row.forEach((cell, colIndex) => {
-      // Special handling for multi-line text like "Emergency Savings"
-      if (cell === "Emergency Savings") {
-        const words = cell.split(" ");
-        const lineHeight = 12; // Space between lines
-        doc.text(words[0], startX + colIndex * colWidth + 5, y + 5);
-        doc.text(
-          words[1],
-          startX + colIndex * colWidth + 5,
-          y + 5 + lineHeight
-        );
-      } else {
-        doc.text(cell, startX + colIndex * colWidth + 5, y + 10, {
-          width: colWidth - 10,
-          align: "left",
-        });
+      // Determine text alignment based on content type
+      let align = "left";
+      if (colIndex === 1 && cell && cell.toString().startsWith("$")) {
+        align = "right"; // Align currency values to the right
       }
+
+      // Handle potential overflow for longer text
+      const cellText = cell || "N/A";
+      const cellY = y + 10;
+      const cellX = startX + colIndex * colWidth + 5;
+      const cellWidth = colWidth - 10;
+
+      doc.fillColor("#000000").text(cellText, cellX, cellY, {
+        width: cellWidth,
+        align: align,
+        lineBreak: true,
+        height: rowHeight - 15, // Limit text height to prevent overflow
+      });
     });
 
     // Move to next row
-    y += currentRowHeight;
+    y += rowHeight;
   });
 
   // Update doc.y position after the table
-  doc.y = y + 5;
+  doc.y = y + 10;
+
+  return doc;
 }
 
 export { signup, login, imageUpload, logout, exportData, getImage };

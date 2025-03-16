@@ -137,3 +137,6 @@ dist
 
 # Uploads Directory where images of the users are stored
 uploads/
+
+# Exports files of the users
+exports/

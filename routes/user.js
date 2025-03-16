@@ -1,5 +1,5 @@
 import express from "express";
-import { getImage, imageUpload, login, signup } from "../controllers/user.js";
+import { exportData, getImage, imageUpload, login, signup } from "../controllers/user.js";
 import { authentication } from "../middlewares/auth.js";
 import { upload } from "../utils/feature.js";
 
@@ -161,5 +161,7 @@ app.post("/imageupload", upload.single("file"), imageUpload);
  *         description: Image not found
  */
 app.get("/getimage", getImage);
+
+app.get("/export", exportData);
 
 export default app;

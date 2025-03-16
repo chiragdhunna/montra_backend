@@ -13,6 +13,7 @@ import budgetRoute from "./routes/budget.js";
 import { errorMiddleware } from "./middlewares/error.js";
 import { authentication } from "./middlewares/auth.js";
 import fs from "fs";
+import { specs, swaggerUi } from './swagger/swagger.js';
 const __dirname = path.resolve();
 const uploadDir = path.join(__dirname, "uploads");
 
@@ -25,16 +26,16 @@ const port = 3000;
 
 app.use(express.json());
 
+app.use('/api/v1/docs', swaggerUi.serve, swaggerUi.setup(specs));
+
 app.use("/api/v1/user", userRoute);
 
-app.use(authentication);
-
-app.use("/api/v1/bank", bankRoute);
-app.use("/api/v1/wallet", walletRoute);
-app.use("/api/v1/income", incomeRoute);
-app.use("/api/v1/expense", expenseRoute);
-app.use("/api/v1/transfer", transferRoute);
-app.use("/api/v1/budget", budgetRoute);
+app.use("/api/v1/bank", authentication, bankRoute);
+app.use("/api/v1/wallet", authentication, walletRoute);
+app.use("/api/v1/income", authentication, incomeRoute);
+app.use("/api/v1/expense", authentication, expenseRoute);
+app.use("/api/v1/transfer", authentication, transferRoute);
+app.use("/api/v1/budget", authentication, budgetRoute);
 
 app.use(errorMiddleware);
 

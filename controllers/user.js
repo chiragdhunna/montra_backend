@@ -113,7 +113,12 @@ const getImage = TryCatch((req, res, err) => {
   });
 });
 
-const logout = TryCatch((req, res, next) => {});
+const logout = TryCatch((req, res, next) => {
+  res.json({
+    success: true,
+    message: 'Logged out successfully'
+  });
+});
 
 const exportData = TryCatch((req, res, next) => {
   // Format of the Report

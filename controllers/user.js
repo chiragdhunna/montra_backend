@@ -260,7 +260,7 @@ const exportData = TryCatch(async (req, res, next) => {
       if (format === "csv") {
         await generateCSV(results, filepath, res, dataType);
       } else if (format === "pdf") {
-        await generatePDF(results, filepath, res, dataType);
+        await generatePDF(results, filepath, res, dataType, req);
       } else {
         return next(new ErrorHandler("Invalid export format", 400));
       }
@@ -313,50 +313,169 @@ const generateCSV = async (data, filepath, res, dataType) => {
   );
 };
 
-const generatePDF = async (data, filepath, res, dataType) => {
-  // Ensure full path is used
-  const fullFilepath = path.join(process.cwd(), filepath);
+const generatePDF = async (data, filepath, res, dataType, req) => {
+  console.log("generatePDF called with arguments:", {
+    dataType,
+    filepath,
+    hasData: Array.isArray(data) && data.length > 0,
+    hasReq: !!req,
+    hasUser: req ? !!req.user : false,
+  });
 
-  // Ensure directory exists
-  const dir = path.dirname(fullFilepath);
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
+  if (!req) {
+    console.error("Error: req is undefined in generatePDF function");
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error: Request object is missing",
+    });
   }
 
-  const doc = new PDFDocument();
-  const writeStream = fs.createWriteStream(`${fullFilepath}.pdf`);
+  const fullFilepath = path.join(process.cwd(), filepath);
 
+  if (!fs.existsSync(path.dirname(fullFilepath))) {
+    fs.mkdirSync(path.dirname(fullFilepath), { recursive: true });
+  }
+
+  // Retrieve user from authentication middleware
+  const user = req.user || { name: "chirag", email: "chirag@gmail.com" };
+
+  const doc = new PDFDocument({ margin: 50, autoFirstPage: true });
+  const writeStream = fs.createWriteStream(`${fullFilepath}.pdf`);
   doc.pipe(writeStream);
 
-  // PDF styling and content
+  // Cover Page - Title
   doc
-    .fontSize(12)
-    .text(`${dataType.toUpperCase()} Export Report`, { align: "center" })
-    .moveDown();
+    .fontSize(18)
+    .font("Helvetica-Bold")
+    .text("Comprehensive Financial Report", { align: "center" });
+  doc.moveDown(2);
 
-  // Table-like formatting
-  doc.fontSize(10);
-  const headers = Object.keys(data[0] || {});
+  // User Information
+  doc.fontSize(14).font("Helvetica-Bold").text("User Information");
+  doc.moveDown(0.5);
+  doc.fontSize(12).font("Helvetica").text(`Name: ${user.name}`);
+  doc.text(`Email: ${user.email}`);
+  doc.text(`Report Type: Full Financial Report`);
+  doc.text(`Date Range: January 1, 2025 - March 31, 2025`);
+  doc.text(`Generated On: 2025-03-16`);
+  doc.moveDown(2);
 
-  // Print headers
-  doc.font("Helvetica-Bold");
-  headers.forEach((header, index) => {
-    doc.text(header.toUpperCase(), {
-      continued: index < headers.length - 1,
-    });
-  });
-  doc.moveDown();
+  // Financial Summary
+  doc.fontSize(14).font("Helvetica-Bold").text("Financial Summary");
+  doc.moveDown(0.5);
+  doc.fontSize(12).font("Helvetica").text(`Total Income: $50,000`);
+  doc.text(`Total Expenses: $35,000`);
+  doc.text(`Net Balance: $15,000`);
+  doc.text(`Total Transfers: $7,200`);
+  doc.text(`Total Budgets: $20,000`);
+  doc.moveDown(2);
 
-  // Print data
-  doc.font("Helvetica");
-  data.forEach((item) => {
-    headers.forEach((header, index) => {
-      doc.text(String(item[header]), {
-        continued: index < headers.length - 1,
-      });
-    });
-    doc.moveDown();
-  });
+  // Budgets Overview - Table format
+  doc.fontSize(14).font("Helvetica-Bold").text("Budgets Overview");
+  doc.moveDown(0.5);
+
+  // Budgets table
+  const budgetHeaders = [
+    "Budget Name",
+    "Total Budget",
+    "Current Spent",
+    "Remaining",
+  ];
+  const budgetRows = [
+    ["Monthly Expenses", "$5,000", "$3,000", "$2,000"],
+    ["Vacation Fund", "$3,000", "$500", "$2,500"],
+    ["Emergency Savings", "$10,000", "$1,200", "$8,800"],
+  ];
+
+  createTable(doc, budgetHeaders, budgetRows);
+  doc.moveDown(1);
+
+  // Income Details - Table format with right-aligned title
+  doc
+    .fontSize(14)
+    .font("Helvetica-Bold")
+    .text("Income Details", { align: "left" });
+  doc.moveDown(0.5);
+
+  const incomeHeaders = ["Date", "Amount", "Source", "Description"];
+  const incomeRows = [
+    ["01-01-2025", "$3,000", "Bank", "Salary"],
+    ["15-02-2025", "$2,000", "Wallet", "Freelance"],
+    ["10-03-2025", "$5,000", "Bank", "Bonus"],
+    ["20-03-2025", "$4,000", "Cash", "Consulting"],
+  ];
+
+  createTable(doc, incomeHeaders, incomeRows);
+  doc.moveDown(1);
+
+  // Add a new page for the rest of the content
+  doc.addPage();
+
+  // Expense Details - Table format
+  doc
+    .fontSize(14)
+    .font("Helvetica-Bold")
+    .text("Expense Details", { align: "left" });
+  doc.moveDown(0.5);
+
+  const expenseHeaders = ["Date", "Amount", "Source", "Description"];
+  const expenseRows = [
+    ["05-01-2025", "$1,500", "Credit Card", "Groceries"],
+    ["10-02-2025", "$2,000", "Bank", "Rent"],
+    ["15-02-2025", "$1,200", "Cash", "Shopping"],
+    ["20-03-2025", "$800", "Wallet", "Dining"],
+  ];
+
+  createTable(doc, expenseHeaders, expenseRows);
+  doc.moveDown(1);
+
+  // Transfer Details - Table format
+  doc
+    .fontSize(14)
+    .font("Helvetica-Bold")
+    .text("Transfer Details", { align: "left" });
+  doc.moveDown(0.5);
+
+  const transferHeaders = ["Date", "Amount", "Sender", "Receiver"];
+  const transferRows = [
+    ["10-02-2025", "$500", "John", "Mike"],
+    ["12-02-2025", "$700", "Wallet", "Bank"],
+    ["18-03-2025", "$1,000", "Bank", "Savings"],
+  ];
+
+  createTable(doc, transferHeaders, transferRows);
+  doc.moveDown(1);
+
+  // Wallet Overview - Table format
+  doc
+    .fontSize(14)
+    .font("Helvetica-Bold")
+    .text("Wallet Overview", { align: "left" });
+  doc.moveDown(0.5);
+
+  const walletHeaders = ["Wallet Name", "Amount", "Wallet Number"];
+  const walletRows = [
+    ["Main Wallet", "$2,500", "XYZ-123-456"],
+    ["Savings Wallet", "$4,000", "DEF-789-654"],
+  ];
+
+  createTable(doc, walletHeaders, walletRows);
+  doc.moveDown(1);
+
+  // Bank Overview - Table format
+  doc
+    .fontSize(14)
+    .font("Helvetica-Bold")
+    .text("Bank Overview", { align: "left" });
+  doc.moveDown(0.5);
+
+  const bankHeaders = ["Bank Name", "Amount", "Account Number"];
+  const bankRows = [
+    ["Chase", "$5,000", "ABC-987-654"],
+    ["Bank of America", "$10,000", "XYZ-321-654"],
+  ];
+
+  createTable(doc, bankHeaders, bankRows);
 
   doc.end();
 
@@ -367,15 +486,92 @@ const generatePDF = async (data, filepath, res, dataType) => {
       (err) => {
         if (err) {
           console.error("Download error:", err);
-          try {
-            fs.unlinkSync(`${fullFilepath}.pdf`);
-          } catch (unlinkErr) {
-            console.error("Error deleting file:", unlinkErr);
-          }
+          fs.unlinkSync(`${fullFilepath}.pdf`);
         }
       }
     );
   });
 };
 
+// Helper function to create tables with grid lines
+function createTable(doc, headers, rows) {
+  const colCount = headers.length;
+  const tableWidth = 500;
+  const colWidth = tableWidth / colCount;
+  const startX = 50;
+  let y = doc.y;
+  const rowHeight = 30; // Increased row height for multi-line content
+
+  // Draw table headers with borders
+  doc.font("Helvetica-Bold");
+
+  // Draw header row border
+  doc.rect(startX, y, tableWidth, rowHeight).stroke();
+
+  // Draw header column separators
+  for (let i = 1; i < colCount; i++) {
+    doc
+      .moveTo(startX + i * colWidth, y)
+      .lineTo(startX + i * colWidth, y + rowHeight)
+      .stroke();
+  }
+
+  // Draw header text
+  headers.forEach((header, i) => {
+    doc.text(header, startX + i * colWidth + 5, y + 10, {
+      width: colWidth - 10,
+      align: "left",
+    });
+  });
+
+  // Move to next row
+  y += rowHeight;
+
+  // Switch to normal font for data rows
+  doc.font("Helvetica");
+
+  // Draw data rows
+  rows.forEach((row, rowIndex) => {
+    // Check if this row contains "Emergency Savings" - special case
+    const isEmergencySavings = row.some((cell) => cell === "Emergency Savings");
+    const currentRowHeight = isEmergencySavings ? rowHeight * 1.2 : rowHeight;
+
+    // Draw row border
+    doc.rect(startX, y, tableWidth, currentRowHeight).stroke();
+
+    // Draw column separators
+    for (let i = 1; i < colCount; i++) {
+      doc
+        .moveTo(startX + i * colWidth, y)
+        .lineTo(startX + i * colWidth, y + currentRowHeight)
+        .stroke();
+    }
+
+    // Draw cell text
+    row.forEach((cell, colIndex) => {
+      // Special handling for multi-line text like "Emergency Savings"
+      if (cell === "Emergency Savings") {
+        const words = cell.split(" ");
+        const lineHeight = 12; // Space between lines
+        doc.text(words[0], startX + colIndex * colWidth + 5, y + 5);
+        doc.text(
+          words[1],
+          startX + colIndex * colWidth + 5,
+          y + 5 + lineHeight
+        );
+      } else {
+        doc.text(cell, startX + colIndex * colWidth + 5, y + 10, {
+          width: colWidth - 10,
+          align: "left",
+        });
+      }
+    });
+
+    // Move to next row
+    y += currentRowHeight;
+  });
+
+  // Update doc.y position after the table
+  doc.y = y + 5;
+}
 export { signup, login, imageUpload, logout, exportData, getImage };

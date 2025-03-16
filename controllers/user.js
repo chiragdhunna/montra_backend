@@ -343,6 +343,9 @@ const generatePDF = async (data, filepath, res, dataType, req) => {
   const writeStream = fs.createWriteStream(`${fullFilepath}.pdf`);
   doc.pipe(writeStream);
 
+  // Define a consistent starting position for all sections
+  const startX = 50;
+
   // Cover Page - Title
   doc
     .fontSize(18)
@@ -351,27 +354,27 @@ const generatePDF = async (data, filepath, res, dataType, req) => {
   doc.moveDown(2);
 
   // User Information
-  doc.fontSize(14).font("Helvetica-Bold").text("User Information");
+  doc.fontSize(14).font("Helvetica-Bold").text("User Information", startX);
   doc.moveDown(0.5);
-  doc.fontSize(12).font("Helvetica").text(`Name: ${user.name}`);
-  doc.text(`Email: ${user.email}`);
-  doc.text(`Report Type: Full Financial Report`);
-  doc.text(`Date Range: January 1, 2025 - March 31, 2025`);
-  doc.text(`Generated On: 2025-03-16`);
+  doc.fontSize(12).font("Helvetica").text(`Name: ${user.name}`, startX);
+  doc.text(`Email: ${user.email}`, startX);
+  doc.text(`Report Type: Full Financial Report`, startX);
+  doc.text(`Date Range: January 1, 2025 - March 31, 2025`, startX);
+  doc.text(`Generated On: 2025-03-16`, startX);
   doc.moveDown(2);
 
   // Financial Summary
-  doc.fontSize(14).font("Helvetica-Bold").text("Financial Summary");
+  doc.fontSize(14).font("Helvetica-Bold").text("Financial Summary", startX);
   doc.moveDown(0.5);
-  doc.fontSize(12).font("Helvetica").text(`Total Income: $50,000`);
-  doc.text(`Total Expenses: $35,000`);
-  doc.text(`Net Balance: $15,000`);
-  doc.text(`Total Transfers: $7,200`);
-  doc.text(`Total Budgets: $20,000`);
+  doc.fontSize(12).font("Helvetica").text(`Total Income: $50,000`, startX);
+  doc.text(`Total Expenses: $35,000`, startX);
+  doc.text(`Net Balance: $15,000`, startX);
+  doc.text(`Total Transfers: $7,200`, startX);
+  doc.text(`Total Budgets: $20,000`, startX);
   doc.moveDown(2);
 
   // Budgets Overview - Table format
-  doc.fontSize(14).font("Helvetica-Bold").text("Budgets Overview");
+  doc.fontSize(14).font("Helvetica-Bold").text("Budgets Overview", startX);
   doc.moveDown(0.5);
 
   // Budgets table
@@ -390,11 +393,8 @@ const generatePDF = async (data, filepath, res, dataType, req) => {
   createTable(doc, budgetHeaders, budgetRows);
   doc.moveDown(1);
 
-  // Income Details - Table format with right-aligned title
-  doc
-    .fontSize(14)
-    .font("Helvetica-Bold")
-    .text("Income Details", { align: "left" });
+  // Income Details - Table format with left-aligned title
+  doc.fontSize(14).font("Helvetica-Bold").text("Income Details", startX);
   doc.moveDown(0.5);
 
   const incomeHeaders = ["Date", "Amount", "Source", "Description"];
@@ -412,10 +412,7 @@ const generatePDF = async (data, filepath, res, dataType, req) => {
   doc.addPage();
 
   // Expense Details - Table format
-  doc
-    .fontSize(14)
-    .font("Helvetica-Bold")
-    .text("Expense Details", { align: "left" });
+  doc.fontSize(14).font("Helvetica-Bold").text("Expense Details", startX);
   doc.moveDown(0.5);
 
   const expenseHeaders = ["Date", "Amount", "Source", "Description"];
@@ -430,10 +427,7 @@ const generatePDF = async (data, filepath, res, dataType, req) => {
   doc.moveDown(1);
 
   // Transfer Details - Table format
-  doc
-    .fontSize(14)
-    .font("Helvetica-Bold")
-    .text("Transfer Details", { align: "left" });
+  doc.fontSize(14).font("Helvetica-Bold").text("Transfer Details", startX);
   doc.moveDown(0.5);
 
   const transferHeaders = ["Date", "Amount", "Sender", "Receiver"];
@@ -447,10 +441,7 @@ const generatePDF = async (data, filepath, res, dataType, req) => {
   doc.moveDown(1);
 
   // Wallet Overview - Table format
-  doc
-    .fontSize(14)
-    .font("Helvetica-Bold")
-    .text("Wallet Overview", { align: "left" });
+  doc.fontSize(14).font("Helvetica-Bold").text("Wallet Overview", startX);
   doc.moveDown(0.5);
 
   const walletHeaders = ["Wallet Name", "Amount", "Wallet Number"];
@@ -463,10 +454,7 @@ const generatePDF = async (data, filepath, res, dataType, req) => {
   doc.moveDown(1);
 
   // Bank Overview - Table format
-  doc
-    .fontSize(14)
-    .font("Helvetica-Bold")
-    .text("Bank Overview", { align: "left" });
+  doc.fontSize(14).font("Helvetica-Bold").text("Bank Overview", startX);
   doc.moveDown(0.5);
 
   const bankHeaders = ["Bank Name", "Amount", "Account Number"];
@@ -574,4 +562,5 @@ function createTable(doc, headers, rows) {
   // Update doc.y position after the table
   doc.y = y + 5;
 }
+
 export { signup, login, imageUpload, logout, exportData, getImage };

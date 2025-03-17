@@ -5,22 +5,26 @@ A robust financial management REST API built with Node.js and Express, featuring
 ## 🌟 Features
 
 - **User Management**
+
   - Secure authentication with JWT
   - Profile management with image upload
   - PIN-based security for sensitive operations
 
 - **Financial Account Management**
+
   - Multiple bank account support
   - Digital wallet integration
   - Cash account tracking
 
 - **Transaction Management**
+
   - Income tracking with proof attachments
   - Expense monitoring
   - Inter-account transfers
   - Budget planning and tracking
 
 - **Data Export**
+
   - Export financial data in CSV/PDF formats
   - Customizable date ranges
   - Filtered exports by transaction type
@@ -34,7 +38,7 @@ A robust financial management REST API built with Node.js and Express, featuring
 
 - Node.js
 - Express.js
-- MySQL
+- PostgreSQL
 - JWT Authentication
 - Swagger UI
 - Multer (File Upload)
@@ -43,24 +47,27 @@ A robust financial management REST API built with Node.js and Express, featuring
 ## 📋 Prerequisites
 
 - Node.js (v14 or higher)
-- MySQL Server
+- PostgreSQL Server
 - npm or yarn package manager
 
 ## ⚙️ Installation
 
 1. **Clone the repository**
+
    ```bash
    git clone https://github.com/chiragdhunna/montra_backend.git
    cd montra_backend
    ```
 
 2. **Install dependencies**
+
    ```bash
    npm install
    ```
 
 3. **Configure environment variables**
    Create a `.env` file in the root directory with the following variables:
+
    ```env
    DB_HOST=your_database_host
    DB_USERNAME=your_database_username
@@ -70,7 +77,8 @@ A robust financial management REST API built with Node.js and Express, featuring
    ```
 
 4. **Set up the database**
-   - Create a MySQL database with the name specified in your .env file
+
+   - Create a PostgreSQL database with the name specified in your .env file
    - Import the database schema (schema file to be provided)
 
 5. **Start the server**
@@ -98,7 +106,7 @@ montra_backend/
 ├── utils/            # Utility functions
 │   └── feature.js    # File upload configuration
 ├── database/         # Database configuration
-│   └── db.js        # MySQL connection setup
+│   └── db.js        # PostgreSQL connection setup
 ├── swagger/          # API documentation
 │   └── swagger.js    # Swagger configuration
 ├── uploads/          # File upload directory
@@ -108,6 +116,7 @@ montra_backend/
 ## 🔌 API Endpoints
 
 ### User Management
+
 - `POST /api/v1/user/signup` - Register new user
 - `POST /api/v1/user/login` - User authentication
 - `POST /api/v1/user/imageupload` - Upload profile picture
@@ -115,31 +124,36 @@ montra_backend/
 - `POST /api/v1/user/export` - Export financial data
 
 ### Bank Account Management
+
 - `POST /api/v1/bank/create` - Create bank account
-- `GET /api/v1/bank/all` - List all bank accounts
-- `PUT /api/v1/bank/update` - Update bank account
+- `GET /api/v1/bank/get` - List all bank accounts
+- `POST /api/v1/bank/update` - Update bank account
 - `DELETE /api/v1/bank/delete` - Remove bank account
 
 ### Income Management
+
 - `POST /api/v1/income/add` - Record new income
   - Supports file attachments (proof of income)
   - Source specification (wallet/bank/cash/credit card)
 
 ### Expense Management
+
 - `POST /api/v1/expense/add` - Record new expense
   - Receipt upload support
   - Source specification
   - Expense categorization
 
 ### Transfer Management
+
 - `POST /api/v1/transfer/add` - Create new transfer
-- `GET /api/v1/transfer/all` - List all transfers
-- `PUT /api/v1/transfer/update` - Modify transfer
+- `GET /api/v1/transfer/getall` - List all transfers
+- `POST /api/v1/transfer/update` - Modify transfer
 - `DELETE /api/v1/transfer/delete` - Remove transfer
 
 ## 📊 Data Export Features
 
 ### Export Types
+
 - Complete financial history
 - Income records
 - Expense records
@@ -147,7 +161,9 @@ montra_backend/
 - Budget reports
 
 ### Export Formats
+
 - **CSV Format**
+
   - Detailed transaction records
   - Compatible with spreadsheet software
   - Custom field selection
@@ -158,6 +174,7 @@ montra_backend/
   - Visual representations
 
 ### Time Range Options
+
 - Last month
 - Last quarter
 - Last 6 months
@@ -166,11 +183,13 @@ montra_backend/
 ## 🔒 Security Features
 
 1. **Authentication**
+
    - JWT-based token authentication
    - Secure password hashing with bcrypt
    - PIN verification for sensitive operations
 
 2. **File Upload Security**
+
    - File type validation
    - Size restrictions (5MB limit)
    - Secure storage management
@@ -183,15 +202,19 @@ montra_backend/
 ## 🚀 Development
 
 ### Running in Development Mode
+
 ```bash
 npm run dev
 ```
 
 ### API Documentation Access
+
 Visit `http://localhost:3000/api/v1/docs` for interactive Swagger documentation
 
 ### Environment Configuration
+
 Required environment variables:
+
 - `DB_HOST` - Database host
 - `DB_USERNAME` - Database username
 - `DB_PASSWORD` - Database password
@@ -207,7 +230,7 @@ npm test
 ## 📦 Deployment
 
 1. Set up production environment variables
-2. Configure MySQL database
+2. Configure PostgreSQL database
 3. Build the application
 4. Start the server using PM2 or similar process manager
 
@@ -225,12 +248,12 @@ This project is licensed under the ISC License - see the [LICENSE](LICENSE) file
 
 ## 👥 Authors
 
-- **Chirag Dhunna** - *Initial work* - [chiragdhunna](https://github.com/chiragdhunna)
+- **Chirag Dhunna** - _Initial work_ - [chiragdhunna](https://github.com/chiragdhunna)
 
 ## 🙏 Acknowledgments
 
 - Express.js community
-- MySQL community
+- PostgreSQL community
 - All contributors who helped with the project
 
 ## 📞 Support
@@ -240,7 +263,7 @@ For support, please email [chiragdhunna2468@gmail.com] or create an issue in the
 ## 🔄 Version History
 
 - 1.0.0
-    - Initial Release
-    - Basic financial management features
-    - User authentication
-    - File upload support 
+  - Initial Release
+  - Basic financial management features
+  - User authentication
+  - File upload support

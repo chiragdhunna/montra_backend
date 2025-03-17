@@ -73,7 +73,7 @@ A robust financial management REST API built with Node.js and Express, featuring
    DB_USERNAME=your_database_username
    DB_PASSWORD=your_database_password
    DB_NAME=your_database_name
-   JWT_SECRET=your_jwt_secret_key
+   JWT_SECRET=your_super_secret_key
    ```
 
 4. **Set up the database**
@@ -209,7 +209,7 @@ npm run dev
 
 ### API Documentation Access
 
-Visit `http://localhost:3000/api/v1/docs` for interactive Swagger documentation
+Visit [https://montra-backend-b45c.onrender.com/api/v1/docs/](https://montra-backend-b45c.onrender.com/api/v1/docs/) for interactive Swagger documentation
 
 ### Environment Configuration
 

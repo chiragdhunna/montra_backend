@@ -2,6 +2,7 @@ import express from "express";
 import {
   addIncome,
   deleteIncome,
+  getAllIncomes,
   getIncome,
   updateIncome,
 } from "../controllers/income.js";
@@ -96,7 +97,7 @@ app.post("/update", updateIncome);
  * @swagger
  * /api/v1/income/get:
  *   get:
- *     summary: Get all income records
+ *     summary: Get total income
  *     tags: [Income]
  *     security:
  *       - ApiKeyAuth: []
@@ -138,5 +139,25 @@ app.get("/get", getIncome);
  *         description: Income record not found
  */
 app.delete("/delete", deleteIncome);
+
+/**
+ * @swagger
+ * /api/v1/income/all:
+ *   get:
+ *     summary: Get all incomes for the authenticated user
+ *     tags: [Income]
+ *     security:
+ *       - ApiKeyAuth: []
+ *     responses:
+ *       200:
+ *         description: List of all incomes
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Income'
+ */
+app.get("/all", getAllIncomes);
 
 export default app;

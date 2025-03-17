@@ -120,4 +120,31 @@ app.get("/getall", getAllWallets);
  */
 app.get("/balance", getWalletBalance);
 
+/**
+ * @swagger
+ * /api/v1/wallet/delete:
+ *   delete:
+ *     summary: Delete a wallet
+ *     tags: [Wallet]
+ *     security:
+ *       - ApiKeyAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - walletNumber
+ *             properties:
+ *               walletNumber:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Wallet deleted successfully
+ *       404:
+ *         description: No wallet found to delete
+ */
+app.delete("/delete", deleteWallet);
+
 export default app;

@@ -2,6 +2,7 @@ import express from "express";
 import {
   addExpense,
   deleteExpense,
+  getAllExpenses,
   getExpense,
   updateExpense,
 } from "../controllers/expense.js";
@@ -138,5 +139,32 @@ app.get("/get", getExpense);
  *         description: Expense not found
  */
 app.delete("/delete", deleteExpense);
+
+/**
+ * @swagger
+ * /api/v1/expense/getAll:
+ *   get:
+ *     summary: Get all expenses for the authenticated user
+ *     tags: [Expense]
+ *     security:
+ *       - ApiKeyAuth: []
+ *     responses:
+ *       200:
+ *         description: List of all expenses for the authenticated user
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 count:
+ *                   type: integer
+ *                 expenses:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Expense'
+ */
+app.get("/getAll", getAllExpenses);
 
 export default app;

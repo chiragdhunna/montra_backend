@@ -3,7 +3,7 @@ import { TryCatch } from "../middlewares/error.js";
 import { ErrorHandler } from "../utils/utility.js";
 import { bankNames } from "../constants/bank.js";
 
-const createBankAccount = TryCatch(async (req, res, next, err) => {
+const createBankAccount = TryCatch(async (req, res, next) => {
   const { user } = req;
   const { amount, bankName } = req.body;
 
@@ -13,23 +13,31 @@ const createBankAccount = TryCatch(async (req, res, next, err) => {
     return next(new ErrorHandler("Invalid bank name", 400));
   }
 
-  const bankCheckQuery = `select * from bank where name = ?`;
+  const bankCheckQuery = `SELECT * FROM bank WHERE name = $1`;
 
-  const [result] = await connection.promise().query(bankCheckQuery, [bankName]);
+  const bankCheckResult = await new Promise((resolve, reject) => {
+    connection.query(bankCheckQuery, [bankName], (err, rows) => {
+      if (err) reject(err);
+      else resolve(rows);
+    });
+  });
 
-  if (result.length != 0)
+  if (bankCheckResult.length !== 0)
     return next(new ErrorHandler("Bank already exists", 409));
 
-  const insertQuery = `insert into bank (name,amount,user_id) values (?,?,?)`;
+  const insertQuery = `INSERT INTO bank (name, amount, user_id) VALUES ($1, $2, $3)`;
 
-  const [insertResult] = await connection
-    .promise()
-    .query(insertQuery, [bankName, amount, user.user_id]);
+  await new Promise((resolve, reject) => {
+    connection.query(insertQuery, [bankName, amount, user.user_id], (err) => {
+      if (err) reject(err);
+      else resolve();
+    });
+  });
 
-  res.json({ success: insertResult });
+  res.json({ success: true });
 });
 
-const deleteBankAccount = TryCatch(async (req, res, err, next) => {
+const deleteBankAccount = TryCatch(async (req, res, next) => {
   const user = req.user;
   const { bankName } = req.body;
 
@@ -39,20 +47,23 @@ const deleteBankAccount = TryCatch(async (req, res, err, next) => {
     return next(new ErrorHandler("Invalid bank name", 400));
   }
 
-  const query = `delete from bank where user_id = ? and name = ?`;
+  const query = `DELETE FROM bank WHERE user_id = $1 AND name = $2`;
 
-  const [result] = await connection
-    .promise()
-    .query(query, [user.user_id, bankName]);
+  const result = await new Promise((resolve, reject) => {
+    connection.query(query, [user.user_id, bankName], (err, result) => {
+      if (err) reject(err);
+      else resolve(result);
+    });
+  });
 
-  if (result.affectedRows === 0) {
+  if (result.rowCount === 0) {
     return next(new ErrorHandler("No bank account found to delete", 404));
   }
 
   res.send("Bank Deleted Successfully");
 });
 
-const updateBankAccount = TryCatch(async (req, res, next, err) => {
+const updateBankAccount = TryCatch(async (req, res, next) => {
   const user = req.user;
 
   const { amount, bankName } = req.body;
@@ -63,37 +74,50 @@ const updateBankAccount = TryCatch(async (req, res, next, err) => {
     return next(new ErrorHandler("Invalid bank name", 400));
   }
 
-  const query = `update bank set amount = ? where user_id = ? and name = ?`;
+  const query = `UPDATE bank SET amount = $1 WHERE user_id = $2 AND name = $3`;
 
-  const result = await connection
-    .promise()
-    .query(query, [amount, user.user_id, bankName]);
+  const result = await new Promise((resolve, reject) => {
+    connection.query(query, [amount, user.user_id, bankName], (err, result) => {
+      if (err) reject(err);
+      else resolve(result);
+    });
+  });
 
-  if (result[0].affectedRows === 0) {
-    return next(new ErrorHandler("Bank Update UnSuccessfull", 500));
+  if (result.rowCount === 0) {
+    return next(new ErrorHandler("Bank Update Unsuccessful", 500));
   }
 
-  res.send(result[0]);
+  res.send({ success: true });
 });
 
-const getAllBankAccounts = TryCatch(async (req, res, err, next) => {
+const getAllBankAccounts = TryCatch(async (req, res) => {
   const user = req.user;
 
-  const query = `select * from bank where user_id = ?`;
+  const query = `SELECT * FROM bank WHERE user_id = $1`;
 
-  const result = await connection.promise().query(query, [user.user_id]);
+  const result = await new Promise((resolve, reject) => {
+    connection.query(query, [user.user_id], (err, rows) => {
+      if (err) reject(err);
+      else resolve(rows);
+    });
+  });
 
-  res.send(result[0]);
+  res.send(result);
 });
 
-const getBalance = TryCatch(async (req, res, err, next) => {
+const getBalance = TryCatch(async (req, res) => {
   const user = req.user;
 
-  const query = `select SUM(amount) as balance from bank where user_id = ?`;
+  const query = `SELECT SUM(amount) as balance FROM bank WHERE user_id = $1`;
 
-  const result = await connection.promise().query(query, [user.user_id]);
+  const result = await new Promise((resolve, reject) => {
+    connection.query(query, [user.user_id], (err, rows) => {
+      if (err) reject(err);
+      else resolve(rows[0]);
+    });
+  });
 
-  res.send(result[0]);
+  res.send(result);
 });
 
 export {

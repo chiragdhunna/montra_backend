@@ -1,5 +1,12 @@
 import express from "express";
-import { exportData, getImage, imageUpload, login, signup } from "../controllers/user.js";
+import {
+  exportData,
+  getImage,
+  getMe,
+  imageUpload,
+  login,
+  signup,
+} from "../controllers/user.js";
 import { authentication } from "../middlewares/auth.js";
 import { upload } from "../utils/feature.js";
 
@@ -212,5 +219,41 @@ app.get("/getimage", getImage);
  *         description: Error generating export file
  */
 app.post("/export", exportData);
+
+/**
+ * @swagger
+ * /api/v1/user/getme:
+ *   get:
+ *     summary: Get authenticated user details
+ *     tags: [Users]
+ *     security:
+ *       - ApiKeyAuth: []
+ *     responses:
+ *       200:
+ *         description: User details retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 user:
+ *                   type: object
+ *                   properties:
+ *                     user_id:
+ *                       type: integer
+ *                     name:
+ *                       type: string
+ *                     email:
+ *                       type: string
+ *                     img_url:
+ *                       type: string
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: User not found
+ */
+app.get("/getme", getMe);
 
 export default app;

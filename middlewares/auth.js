@@ -17,10 +17,18 @@ const authentication = TryCatch((req, res, next) => {
     return next(new ErrorHandler("Invalid authentication token", 401));
   }
 
-  const query = `select * from user where user_id = ?`;
+  // Use PostgreSQL-specific parameterized query with double quotes for "user" table
+  const query = `SELECT * FROM users WHERE user_id = $1`;
 
   connection.query(query, [decoded.userId], (err, result) => {
-    if (err || result.length === 0) {
+    if (err) {
+      console.error("Authentication error:", err);
+      return next(
+        new ErrorHandler("Database error during authentication", 500)
+      );
+    }
+
+    if (!result || result.length === 0) {
       return next(new ErrorHandler("User does not exist", 404));
     }
 

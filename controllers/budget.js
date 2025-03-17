@@ -2,35 +2,51 @@ import connection from "../database/db.js";
 import { TryCatch } from "../middlewares/error.js";
 import { ErrorHandler } from "../utils/utility.js";
 
-const createBudget = TryCatch(async (req, res, next, err) => {
+const createBudget = TryCatch(async (req, res, next) => {
   const user = req.user;
 
   const { totalBudget, name } = req.body;
 
-  const query = `insert into budget (total_budget,name,user_id) values (?,?,?)`;
+  const query = `INSERT INTO budget (total_budget, name, user_id) VALUES ($1, $2, $3)`;
 
-  const results = await connection
-    .promise()
-    .query(query, [totalBudget, name, user.user_id]);
+  await new Promise((resolve, reject) => {
+    connection.query(
+      query,
+      [totalBudget, name, user.user_id],
+      (err, result) => {
+        if (err) {
+          reject(err);
+        } else if (result.rowCount === 0) {
+          return next(new ErrorHandler("Budget not created", 501));
+        } else {
+          resolve(result);
+        }
+      }
+    );
+  });
 
-  if (results[0].affectedRows === 0) {
-    return next(new ErrorHandler("Budget not created", 501));
-  }
-
-  res.send(results[0]);
+  res.send({ success: true });
 });
 
-const updateBudget = TryCatch(async (req, res, next, err) => {
+const updateBudget = TryCatch(async (req, res, next) => {
   const user = req.user;
   const { budget_id, totalBudget, name, current } = req.body;
 
   // Validate that budget belongs to user first
-  const validateQuery = `SELECT * FROM budget WHERE budget_id = ? AND user_id = ?`;
-  const validateResults = await connection
-    .promise()
-    .query(validateQuery, [budget_id, user.user_id]);
+  const validateQuery = `SELECT * FROM budget WHERE budget_id = $1 AND user_id = $2`;
 
-  if (validateResults[0].length === 0) {
+  const validateResults = await new Promise((resolve, reject) => {
+    connection.query(
+      validateQuery,
+      [budget_id, user.user_id],
+      (err, result) => {
+        if (err) reject(err);
+        else resolve(result);
+      }
+    );
+  });
+
+  if (validateResults.rows.length === 0) {
     return next(new ErrorHandler("Budget not found or unauthorized", 404));
   }
 
@@ -39,17 +55,17 @@ const updateBudget = TryCatch(async (req, res, next, err) => {
   let params = [];
 
   if (totalBudget !== undefined) {
-    updateFields.push("total_budget = ?");
+    updateFields.push(`total_budget = $${params.length + 1}`);
     params.push(totalBudget);
   }
 
   if (name !== undefined) {
-    updateFields.push("name = ?");
+    updateFields.push(`name = $${params.length + 1}`);
     params.push(name);
   }
 
   if (current !== undefined) {
-    updateFields.push("current = ?");
+    updateFields.push(`current = $${params.length + 1}`);
     params.push(current);
   }
 
@@ -64,22 +80,27 @@ const updateBudget = TryCatch(async (req, res, next, err) => {
 
   const query = `UPDATE budget SET ${updateFields.join(
     ", "
-  )} WHERE budget_id = ? AND user_id = ?`;
+  )} WHERE budget_id = $${params.length - 1} AND user_id = $${params.length}`;
 
-  const results = await connection.promise().query(query, params);
+  const results = await new Promise((resolve, reject) => {
+    connection.query(query, params, (err, result) => {
+      if (err) reject(err);
+      else resolve(result);
+    });
+  });
 
-  if (results[0].affectedRows === 0) {
+  if (results.rowCount === 0) {
     return next(new ErrorHandler("Budget not updated", 500));
   }
 
   res.status(200).json({
     success: true,
     message: "Budget updated successfully",
-    affectedRows: results[0].affectedRows,
+    affectedRows: results.rowCount,
   });
 });
 
-const deleteBudget = TryCatch(async (req, res, next, err) => {
+const deleteBudget = TryCatch(async (req, res, next) => {
   const user = req.user;
   const { budget_id } = req.body;
 
@@ -87,34 +108,44 @@ const deleteBudget = TryCatch(async (req, res, next, err) => {
     return next(new ErrorHandler("Budget ID is required", 400));
   }
 
-  const query = `DELETE FROM budget WHERE budget_id = ? AND user_id = ?`;
+  const query = `DELETE FROM budget WHERE budget_id = $1 AND user_id = $2`;
 
-  const results = await connection
-    .promise()
-    .query(query, [budget_id, user.user_id]);
+  const results = await new Promise((resolve, reject) => {
+    connection.query(query, [budget_id, user.user_id], (err, result) => {
+      if (err) reject(err);
+      else resolve(result);
+    });
+  });
 
-  if (results[0].affectedRows === 0) {
+  if (results.rowCount === 0) {
     return next(new ErrorHandler("Budget not found or unauthorized", 404));
   }
 
   res.status(200).json({
     success: true,
     message: "Budget deleted successfully",
-    affectedRows: results[0].affectedRows,
+    affectedRows: results.rowCount,
   });
 });
 
-const getAllBudget = TryCatch(async (req, res, next, err) => {
+const getAllBudget = TryCatch(async (req, res) => {
   const user = req.user;
 
-  const query = `SELECT * FROM budget WHERE user_id = ?`;
+  const query = `SELECT * FROM budget WHERE user_id = $1`;
 
-  const [budgets] = await connection.promise().query(query, [user.user_id]);
+  const results = await new Promise((resolve, reject) => {
+    connection.query(query, [user.user_id], (err, result) => {
+      if (err) reject(err);
+      else resolve(result);
+    });
+  });
+
+  console.log({ results });
 
   res.status(200).json({
     success: true,
-    count: budgets.length,
-    data: budgets,
+    count: results.rows,
+    data: results,
   });
 });
 

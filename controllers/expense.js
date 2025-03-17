@@ -2,6 +2,9 @@ import { expenseSource } from "../constants/expense.js";
 import connection from "../database/db.js";
 import { TryCatch } from "../middlewares/error.js";
 import { ErrorHandler } from "../utils/utility.js";
+import fs from "fs";
+import { promisify } from "util";
+const unlinkAsync = promisify(fs.unlink);
 
 const addExpense = TryCatch(async (req, res, next) => {
   const user = req.user;
@@ -85,10 +88,32 @@ const deleteExpense = TryCatch(async (req, res, next) => {
 
   const { expenseId } = req.body;
 
-  const query = `DELETE FROM expense WHERE expense_id = $1 AND user_id = $2`;
+  // First, fetch the attachment path
+  const fetchQuery = `SELECT attachment FROM expense WHERE expense_id = $1 AND user_id = $2`;
+
+  const attachmentResult = await new Promise((resolve, reject) => {
+    connection.query(fetchQuery, [expenseId, user.user_id], (err, result) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(result);
+      }
+    });
+  });
+
+  // If no expense found, return error
+  if (attachmentResult.rowCount === 0) {
+    return next(new ErrorHandler("Expense not found", 404));
+  }
+
+  // Get the attachment path
+  const attachmentPath = attachmentResult[0].attachment;
+
+  // Delete the expense from database
+  const deleteQuery = `DELETE FROM expense WHERE expense_id = $1 AND user_id = $2`;
 
   const results = await new Promise((resolve, reject) => {
-    connection.query(query, [expenseId, user.user_id], (err, result) => {
+    connection.query(deleteQuery, [expenseId, user.user_id], (err, result) => {
       if (err) {
         reject(err);
       } else {
@@ -98,7 +123,17 @@ const deleteExpense = TryCatch(async (req, res, next) => {
   });
 
   if (results.rowCount === 0) {
-    return next(new ErrorHandler("DB not update", 500));
+    return next(new ErrorHandler("Expense not deleted", 500));
+  }
+
+  // Delete the attachment file
+  try {
+    if (attachmentPath && fs.existsSync(attachmentPath)) {
+      await unlinkAsync(attachmentPath);
+    }
+  } catch (error) {
+    console.error("Error deleting attachment:", error);
+    // Optional: You might want to log this error but not stop the response
   }
 
   res.send("Expense Deleted Successfully");

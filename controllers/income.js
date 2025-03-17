@@ -2,6 +2,10 @@ import { incomeSource } from "../constants/income.js";
 import connection from "../database/db.js";
 import { TryCatch } from "../middlewares/error.js";
 import { ErrorHandler } from "../utils/utility.js";
+import fs from "fs";
+import { promisify } from "util";
+
+const unlinkAsync = promisify(fs.unlink);
 
 const addIncome = TryCatch(async (req, res, next) => {
   const user = req.user;
@@ -73,10 +77,32 @@ const deleteIncome = TryCatch(async (req, res, next) => {
 
   const { incomeId } = req.body;
 
-  const query = `DELETE FROM income WHERE income_id = $1 AND user_id = $2`;
+  // First, fetch the attachment path
+  const fetchQuery = `SELECT attachment FROM income WHERE income_id = $1 AND user_id = $2`;
+
+  const attachmentResult = await new Promise((resolve, reject) => {
+    connection.query(fetchQuery, [incomeId, user.user_id], (err, result) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(result);
+      }
+    });
+  });
+
+  // If no income found, return error
+  if (attachmentResult.rowCount === 0) {
+    return next(new ErrorHandler("Income not found", 404));
+  }
+
+  // Get the attachment path
+  const attachmentPath = attachmentResult[0].attachment;
+
+  // Delete the income from database
+  const deleteQuery = `DELETE FROM income WHERE income_id = $1 AND user_id = $2`;
 
   const results = await new Promise((resolve, reject) => {
-    connection.query(query, [incomeId, user.user_id], (err, result) => {
+    connection.query(deleteQuery, [incomeId, user.user_id], (err, result) => {
       if (err) {
         reject(err);
       } else {
@@ -86,7 +112,16 @@ const deleteIncome = TryCatch(async (req, res, next) => {
   });
 
   if (results.rowCount === 0) {
-    return next(new ErrorHandler("DB not update", 500));
+    return next(new ErrorHandler("Income not deleted", 500));
+  }
+
+  // Delete the attachment file
+  try {
+    if (attachmentPath && fs.existsSync(attachmentPath)) {
+      await unlinkAsync(attachmentPath);
+    }
+  } catch (error) {
+    console.error("Error deleting attachment:", error);
   }
 
   res.send("Income deleted successfully");

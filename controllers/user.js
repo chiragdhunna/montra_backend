@@ -974,9 +974,19 @@ const getMe = TryCatch((req, res, next) => {
       return next(new ErrorHandler("User not found", 404));
     }
 
+    const { user_id: userId, email } = req.user;
+
+    console.log(userId);
+
+    const token = jwt.sign(
+      { userId: userId, email: email },
+      process.env.JWT_SECRET
+    );
+
     res.status(200).json({
       success: true,
       user: result[0],
+      token,
     });
   });
 });

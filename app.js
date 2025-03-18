@@ -28,7 +28,7 @@ app.use(express.json());
 
 app.use("/api/v1/docs", swaggerUi.serve, swaggerUi.setup(specs));
 
-app.use("/api/v1/user", userRoute);
+app.use("/api/v1/users", userRoute);
 
 app.use("/api/v1/bank", authentication, bankRoute);
 app.use("/api/v1/wallet", authentication, walletRoute);

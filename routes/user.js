@@ -44,7 +44,7 @@ const app = express.Router();
 
 /**
  * @swagger
- * /api/v1/user/signup:
+ * /api/v1/users/signup:
  *   post:
  *     summary: Register a new user
  *     tags: [Users]
@@ -73,7 +73,7 @@ app.post("/signup", signup);
 
 /**
  * @swagger
- * /api/v1/user/login:
+ * /api/v1/users/login:
  *   post:
  *     summary: Login user
  *     tags: [Users]
@@ -114,7 +114,7 @@ app.use(authentication);
 
 /**
  * @swagger
- * /api/v1/user/imageupload:
+ * /api/v1/users/imageupload:
  *   post:
  *     summary: Upload user profile image
  *     tags: [Users]
@@ -148,7 +148,7 @@ app.post("/imageupload", upload.single("file"), imageUpload);
 
 /**
  * @swagger
- * /api/v1/user/getimage:
+ * /api/v1/users/getimage:
  *   get:
  *     summary: Get user's profile image
  *     tags: [Users]
@@ -171,7 +171,7 @@ app.get("/getimage", getImage);
 
 /**
  * @swagger
- * /api/v1/user/export:
+ * /api/v1/users/export:
  *   post:
  *     summary: Export user's financial data
  *     tags: [Users]
@@ -222,7 +222,7 @@ app.post("/export", exportData);
 
 /**
  * @swagger
- * /api/v1/user/getme:
+ * /api/v1/users/getme:
  *   get:
  *     summary: Get authenticated user details
  *     tags: [Users]

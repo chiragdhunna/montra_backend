@@ -36,7 +36,6 @@ const signup = TryCatch(async (req, res, next) => {
       );
 
       res.status(201).json({
-        success: true,
         userId: userId,
         token,
       });
@@ -47,8 +46,8 @@ const signup = TryCatch(async (req, res, next) => {
 const login = TryCatch((req, res, next) => {
   const { email, password } = req.body;
 
-  // Updated query for PostgreSQL
-  const query = "SELECT * FROM users WHERE email = $1";
+  const query =
+    "SELECT user_id, name, email, password FROM users WHERE email = $1";
 
   connection.query(query, [email], (err, results) => {
     if (err) {
@@ -67,13 +66,22 @@ const login = TryCatch((req, res, next) => {
         return next(new ErrorHandler("Incorrect Password", 401));
       }
 
-      // Generate JWT
+      // Remove password from user object before sending
+      const userResponse = {
+        user_id: user.user_id.toString(),
+        name: user.name,
+        email: user.email,
+      };
+
       const token = jwt.sign(
         { userId: user.user_id, email: user.email },
         process.env.JWT_SECRET
       );
 
-      res.json({ success: true, token });
+      res.json({
+        user: userResponse,
+        token,
+      });
     });
   });
 });

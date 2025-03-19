@@ -15,7 +15,7 @@ const signup = TryCatch(async (req, res, next) => {
   var ecryptedPassword = await bcrypt.hash(password, saltRounds);
 
   // Updated query with RETURNING clause for PostgreSQL
-  const query = `INSERT INTO users (name, email, password, img_url, pin) VALUES ($1, $2, $3, $4, $5) RETURNING user_id`;
+  const query = `INSERT INTO users (name, email, password, img_url, pin) VALUES ($1, $2, $3, $4, $5) RETURNING user_id, name, email`;
 
   connection.query(
     query,
@@ -26,17 +26,29 @@ const signup = TryCatch(async (req, res, next) => {
         return next(new ErrorHandler("Database error", 500));
       }
 
-      // Get user ID from the RETURNING clause
-      const userId = result && result[0] ? result[0].user_id : null;
+      // Get user data from the RETURNING clause
+      const user = result && result[0] ? result[0] : null;
+
+      if (!user) {
+        return next(new ErrorHandler("Failed to create user", 500));
+      }
+
+      // Create user response object without password
+      const userResponse = {
+        user_id: user.user_id.toString(),
+        name: user.name,
+        email: user.email,
+      };
 
       // Create token
       const token = jwt.sign(
-        { userId: userId, email: email },
+        { userId: user.user_id, email: user.email },
         process.env.JWT_SECRET
       );
 
+      // Return the same response format as login
       res.status(201).json({
-        userId: userId,
+        user: userResponse,
         token,
       });
     }

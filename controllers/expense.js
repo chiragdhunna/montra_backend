@@ -154,7 +154,7 @@ const getExpense = TryCatch(async (req, res, next) => {
     });
   });
 
-  res.send(results[0]);
+  res.json({ expense: results[0].expense ? parseInt(results[0].expense) : 0 });
 });
 
 // Additional helper function to get all expenses (optional)
@@ -179,4 +179,94 @@ const getAllExpenses = TryCatch(async (req, res) => {
   });
 });
 
-export { addExpense, updateExpense, deleteExpense, getExpense, getAllExpenses };
+// Getting Expense stats for the graph by today, this week, this month, and this year
+const getExpenseStats = TryCatch(async (req, res, next) => {
+  const user = req.user;
+
+  // 🟢 1. Summary Stats
+  const summaryQuery = `
+    SELECT 
+      SUM(CASE WHEN created_at::date = CURRENT_DATE THEN amount ELSE 0 END) as today,
+      SUM(CASE WHEN extract(week from created_at) = extract(week from current_date) THEN amount ELSE 0 END) as week,
+      SUM(CASE WHEN EXTRACT(MONTH FROM created_at) = EXTRACT(MONTH FROM CURRENT_DATE) THEN amount ELSE 0 END) as month,
+      SUM(CASE WHEN EXTRACT(YEAR FROM created_at) = EXTRACT(YEAR FROM CURRENT_DATE) THEN amount ELSE 0 END) as year
+    FROM expense
+    WHERE user_id = $1
+  `;
+
+  const summary = await new Promise((resolve, reject) => {
+    connection.query(summaryQuery, [user.user_id], (err, result) => {
+      if (err) reject(err);
+      else resolve(result[0]);
+    });
+  });
+
+  // 🟢 2. Grouped Frequency Data
+  const frequencyQuery = `
+    SELECT 
+      CASE 
+        WHEN created_at::date = CURRENT_DATE THEN TO_CHAR(created_at, 'HH24:MI')
+        WHEN created_at >= CURRENT_DATE - INTERVAL '6 days' THEN TO_CHAR(created_at, 'Day')
+        WHEN EXTRACT(MONTH FROM created_at) = EXTRACT(MONTH FROM CURRENT_DATE) THEN TO_CHAR(created_at, 'DD')
+        WHEN EXTRACT(YEAR FROM created_at) = EXTRACT(YEAR FROM CURRENT_DATE) THEN TO_CHAR(created_at, 'MM')
+      END AS label,
+      CASE 
+        WHEN created_at::date = CURRENT_DATE THEN 'today'
+        WHEN created_at >= CURRENT_DATE - INTERVAL '6 days' THEN 'week'
+        WHEN EXTRACT(MONTH FROM created_at) = EXTRACT(MONTH FROM CURRENT_DATE) THEN 'month'
+        WHEN EXTRACT(YEAR FROM created_at) = EXTRACT(YEAR FROM CURRENT_DATE) THEN 'year'
+      END AS period,
+      SUM(amount) AS total
+    FROM expense
+    WHERE user_id = $1
+      AND (
+        created_at::date = CURRENT_DATE OR
+        created_at >= CURRENT_DATE - INTERVAL '6 days' OR
+        EXTRACT(MONTH FROM created_at) = EXTRACT(MONTH FROM CURRENT_DATE) OR
+        EXTRACT(YEAR FROM created_at) = EXTRACT(YEAR FROM CURRENT_DATE)
+      )
+    GROUP BY period, label
+    ORDER BY period, label;
+  `;
+
+  const frequencyRows = await new Promise((resolve, reject) => {
+    connection.query(frequencyQuery, [user.user_id], (err, result) => {
+      if (err) reject(err);
+      else resolve(result);
+    });
+  });
+
+  // 🧠 Transform rows into grouped data
+  const frequency = {
+    today: [],
+    week: [],
+    month: [],
+    year: [],
+  };
+
+  for (const row of frequencyRows) {
+    const label = row.label?.trim?.();
+    const total = parseFloat(row.total);
+    frequency[row.period].push({ label, total });
+  }
+
+  // ✅ Final response
+  res.json({
+    summary: {
+      today: parseInt(summary.today),
+      week: parseInt(summary.week),
+      month: parseInt(summary.month),
+      year: parseInt(summary.year),
+    },
+    frequency,
+  });
+});
+
+export {
+  addExpense,
+  updateExpense,
+  deleteExpense,
+  getExpense,
+  getAllExpenses,
+  getExpenseStats,
+};

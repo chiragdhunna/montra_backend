@@ -123,7 +123,9 @@ const imageUpload = TryCatch((req, res, next) => {
     }
 
     // Successful completion
-    res.status(201).send(`Files uploaded successfully: ${req.file.path}`);
+    res.status(201).json({
+      img_path: req.file.path,
+    });
   });
 });
 

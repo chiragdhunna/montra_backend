@@ -142,7 +142,7 @@ const getIncome = TryCatch(async (req, res, next) => {
     });
   });
 
-  res.send(results);
+  res.json({ income: results[0].income ? parseInt(results[0].income) : 0 });
 });
 
 const getAllIncomes = TryCatch(async (req, res, next) => {

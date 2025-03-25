@@ -117,7 +117,9 @@ const getBalance = TryCatch(async (req, res) => {
     });
   });
 
-  res.send(result);
+  const balance = result.balance ? parseInt(result.balance, 10) : 0;
+
+  res.send({ balance });
 });
 
 export {

@@ -135,8 +135,9 @@ const getWalletBalance = TryCatch(async (req, res, next) => {
       }
     });
   });
+  const balance = result.balance ? parseInt(result.balance, 10) : 0;
 
-  res.send(result);
+  res.send({ balance });
 });
 
 export {

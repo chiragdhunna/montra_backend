@@ -5,7 +5,8 @@ import { bankNames } from "../constants/bank.js";
 
 const createBankAccount = TryCatch(async (req, res, next) => {
   const { user } = req;
-  const { amount, bankName } = req.body;
+  const { amount, bank_name } = req.body;
+  const bankName = req.body.bank_name;
 
   const isValidBankName = (name) => bankNames.includes(name);
 

@@ -140,8 +140,6 @@ const getAllBudget = TryCatch(async (req, res) => {
     });
   });
 
-  console.log({ results });
-
   res.status(200).json({
     budgets: results,
   });

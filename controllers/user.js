@@ -22,7 +22,7 @@ const signup = TryCatch(async (req, res, next) => {
     [name, email, ecryptedPassword, imgUrl, pin],
     (err, result) => {
       if (err) {
-        console.log("Signup Error: ", err);
+        console.error("Signup Error: ", err);
         return next(new ErrorHandler("Database error", 500));
       }
 
@@ -63,7 +63,7 @@ const login = TryCatch((req, res, next) => {
 
   connection.query(query, [email], (err, results) => {
     if (err) {
-      console.log("Login error:", err);
+      console.error("Login error:", err);
       return next(new ErrorHandler("Database error", 500));
     }
 
@@ -118,7 +118,7 @@ const imageUpload = TryCatch((req, res, next) => {
 
   connection.query(query, [req.file.path, user.user_id], (err, result) => {
     if (err) {
-      console.log("Image upload error:", err);
+      console.error("Image upload error:", err);
       return next(new ErrorHandler("Cannot add img_url", 500));
     }
 
@@ -141,7 +141,7 @@ const getImage = TryCatch((req, res, next) => {
 
   connection.query(query, [user.user_id], (err, result) => {
     if (err) {
-      console.log("Get image error:", err);
+      console.error("Get image error:", err);
       return next(new ErrorHandler("Image not found", 404));
     }
 
@@ -172,10 +172,9 @@ const exportData = TryCatch(async (req, res, next) => {
   const user = req.user;
 
   if (!user) {
-    console.log(`user : ${user}`);
+    console.error(`user : ${user}`);
     return next(new ErrorHandler("User not authenticated", 401));
   }
-  console.log(`user : ${user}`);
 
   // Determine date range
   const currentDate = new Date();
@@ -304,7 +303,7 @@ const exportData = TryCatch(async (req, res, next) => {
     const result = await new Promise((resolve, reject) => {
       connection.query(query, queryParams, (err, results) => {
         if (err) {
-          console.log("Export query error:", err);
+          console.error("Export query error:", err);
           reject(err);
         } else {
           resolve(results);
@@ -331,11 +330,11 @@ const exportData = TryCatch(async (req, res, next) => {
         return next(new ErrorHandler("Invalid export format", 400));
       }
     } catch (exportError) {
-      console.log("Export generation error:", exportError);
+      console.error("Export generation error:", exportError);
       return next(new ErrorHandler("Error generating export file", 500));
     }
   } catch (err) {
-    console.log("Export query error:", err);
+    console.error("Export query error:", err);
     return next(new ErrorHandler("Error fetching data", 500));
   }
 });
@@ -372,11 +371,11 @@ const generateCSV = async (data, filepath, res, dataType) => {
     `${dataType}_export_${Date.now()}.csv`,
     (err) => {
       if (err) {
-        console.log("Download error:", err);
+        console.error("Download error:", err);
         try {
           fs.unlinkSync(`${fullFilepath}.csv`);
         } catch (unlinkErr) {
-          console.log("Error deleting file:", unlinkErr);
+          console.error("Error deleting file:", unlinkErr);
         }
       }
     }
@@ -393,7 +392,7 @@ const generatePDF = async (data, filepath, res, dataType, req) => {
   });
 
   if (!req) {
-    console.log("Error: req is undefined in generatePDF function");
+    console.error("Error: req is undefined in generatePDF function");
     return res.status(500).json({
       success: false,
       message: "Internal Server Error: Request object is missing",
@@ -408,7 +407,6 @@ const generatePDF = async (data, filepath, res, dataType, req) => {
 
   // Get the user ID from the request
   const userId = req.user ? req.user.user_id : null;
-  console.log(`userId : ${userId}`);
 
   if (!userId) {
     return res.status(401).json({
@@ -722,18 +720,18 @@ const generatePDF = async (data, filepath, res, dataType, req) => {
         `${dataType}_export_${Date.now()}.pdf`,
         (err) => {
           if (err) {
-            console.log("Download error:", err);
+            console.error("Download error:", err);
             try {
               fs.unlinkSync(`${fullFilepath}.pdf`);
             } catch (unlinkErr) {
-              console.log("Error deleting file:", unlinkErr);
+              console.error("Error deleting file:", unlinkErr);
             }
           }
         }
       );
     });
   } catch (error) {
-    console.log("Error generating PDF:", error);
+    console.error("Error generating PDF:", error);
     return res.status(500).json({
       success: false,
       message: "Error generating PDF report",
@@ -988,7 +986,7 @@ const getMe = TryCatch((req, res, next) => {
 
   connection.query(query, [user.user_id], (err, result) => {
     if (err) {
-      console.log("Get user error:", err);
+      console.error("Get user error:", err);
       return next(new ErrorHandler("User not found", 404));
     }
 
@@ -997,8 +995,6 @@ const getMe = TryCatch((req, res, next) => {
     }
 
     const { user_id: userId, email } = req.user;
-
-    console.log(userId);
 
     const token = jwt.sign(
       { userId: userId, email: email },

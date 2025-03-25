@@ -118,7 +118,7 @@ const getAllWallets = TryCatch(async (req, res, next) => {
     });
   });
 
-  res.send(result);
+  res.send({ wallets: result });
 });
 
 const getWalletBalance = TryCatch(async (req, res, next) => {

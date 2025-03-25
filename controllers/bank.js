@@ -102,7 +102,7 @@ const getAllBankAccounts = TryCatch(async (req, res) => {
     });
   });
 
-  res.send(result);
+  res.send({ banks: result });
 });
 
 const getBalance = TryCatch(async (req, res) => {

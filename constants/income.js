@@ -1,3 +1,3 @@
-const incomeSource = Object.freeze(["wallet", "bank", "cash", "credit card"]);
+const incomeSource = Object.freeze(["wallet", "bank", "cash", "creditCard"]);
 
 export { incomeSource };

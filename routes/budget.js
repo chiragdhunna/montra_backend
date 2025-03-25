@@ -3,6 +3,7 @@ import {
   createBudget,
   deleteBudget,
   getAllBudget,
+  getBudgetByMonth,
   updateBudget,
 } from "../controllers/budget.js";
 
@@ -137,5 +138,62 @@ app.delete("/delete", deleteBudget);
  *                     $ref: '#/components/schemas/Budget'
  */
 app.get("/getall", getAllBudget);
+
+/**
+ * @swagger
+ * /api/v1/budget/getbymonth:
+ *   post:
+ *     summary: Get budgets for a specific month in the current year
+ *     tags: [Budget]
+ *     security:
+ *       - ApiKeyAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - month
+ *             properties:
+ *               month:
+ *                 type: integer
+ *                 description: Month number (1-12)
+ *                 minimum: 1
+ *                 maximum: 12
+ *                 example: 3
+ *     responses:
+ *       200:
+ *         description: List of budgets for the specified month
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Budgets for month 3 retrieved successfully"
+ *                 budgets:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Budget'
+ *       400:
+ *         description: Bad request - Invalid month or missing required fields
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Month is required"
+ */
+app.post("/getbymonth", getBudgetByMonth);
 
 export default app;

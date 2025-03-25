@@ -5,14 +5,14 @@ import { ErrorHandler } from "../utils/utility.js";
 const createBudget = TryCatch(async (req, res, next) => {
   const user = req.user;
 
-  const { totalBudget, name } = req.body;
+  const { total_budget, name } = req.body;
 
   const query = `INSERT INTO budget (total_budget, name, user_id) VALUES ($1, $2, $3)`;
 
   await new Promise((resolve, reject) => {
     connection.query(
       query,
-      [totalBudget, name, user.user_id],
+      [total_budget, name, user.user_id],
       (err, result) => {
         if (err) {
           reject(err);
@@ -30,7 +30,7 @@ const createBudget = TryCatch(async (req, res, next) => {
 
 const updateBudget = TryCatch(async (req, res, next) => {
   const user = req.user;
-  const { budget_id, totalBudget, name, current } = req.body;
+  const { budget_id, total_budget, name, current } = req.body;
 
   // Validate that budget belongs to user first
   const validateQuery = `SELECT * FROM budget WHERE budget_id = $1 AND user_id = $2`;
@@ -46,7 +46,7 @@ const updateBudget = TryCatch(async (req, res, next) => {
     );
   });
 
-  if (validateResults.rows.length === 0) {
+  if (validateResults.length === 0) {
     return next(new ErrorHandler("Budget not found or unauthorized", 404));
   }
 
@@ -54,9 +54,9 @@ const updateBudget = TryCatch(async (req, res, next) => {
   let updateFields = [];
   let params = [];
 
-  if (totalBudget !== undefined) {
+  if (total_budget !== undefined) {
     updateFields.push(`total_budget = $${params.length + 1}`);
-    params.push(totalBudget);
+    params.push(total_budget);
   }
 
   if (name !== undefined) {
@@ -143,10 +143,70 @@ const getAllBudget = TryCatch(async (req, res) => {
   console.log({ results });
 
   res.status(200).json({
-    success: true,
-    count: results.rows,
-    data: results,
+    budgets: results,
   });
 });
 
-export { createBudget, updateBudget, deleteBudget, getAllBudget };
+const getBudgetByMonth = TryCatch(async (req, res, next) => {
+  const user = req.user;
+  const { month } = req.body;
+
+  if (!month) {
+    return next(new ErrorHandler("Month is required", 400));
+  }
+
+  // Validate month (1-12)
+  const monthNum = parseInt(month);
+
+  if (isNaN(monthNum) || monthNum < 1 || monthNum > 12) {
+    return next(
+      new ErrorHandler(
+        "Invalid month format. Month should be between 1-12",
+        400
+      )
+    );
+  }
+
+  // Get current year
+  const currentYear = new Date().getFullYear();
+
+  // PostgreSQL query to get budgets for the specific month of current year
+  const query = `
+    SELECT * FROM budget 
+    WHERE user_id = $1 
+    AND EXTRACT(MONTH FROM created_at) = $2
+    AND EXTRACT(YEAR FROM created_at) = $3
+  `;
+
+  const results = await new Promise((resolve, reject) => {
+    connection.query(
+      query,
+      [user.user_id, monthNum, currentYear],
+      (err, result) => {
+        if (err) reject(err);
+        else resolve(result);
+      }
+    );
+  });
+
+  // If no budgets found for the month, return empty array with a message
+  if (results.length === 0) {
+    return res.status(200).json({
+      success: true,
+      message: `No budgets found for month ${month}`,
+      budgets: [],
+    });
+  }
+
+  res.status(200).json({
+    budgets: results,
+  });
+});
+
+export {
+  createBudget,
+  updateBudget,
+  deleteBudget,
+  getAllBudget,
+  getBudgetByMonth,
+};

@@ -161,8 +161,6 @@ const getAllIncomes = TryCatch(async (req, res, next) => {
   });
 
   res.status(200).json({
-    success: true,
-    count: results[0].length,
     incomes: results,
   });
 });

@@ -173,9 +173,8 @@ const getAllExpenses = TryCatch(async (req, res) => {
     });
   });
 
-  res.send({
-    success: true,
-    result,
+  res.json({
+    expenses: result,
   });
 });
 

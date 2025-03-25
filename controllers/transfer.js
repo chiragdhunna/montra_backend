@@ -7,12 +7,16 @@ const createTransfer = TryCatch(async (req, res, next) => {
 
   const { amount, sender, receiver, isExpense } = req.body;
 
+  // Ensure isExpense defaults to false if not provided
+  const normalizedIsExpense =
+    isExpense !== undefined ? Boolean(isExpense) : false;
+
   const query = `INSERT INTO transfer (amount, sender, receiver, is_expense, user_id) VALUES ($1, $2, $3, $4, $5)`;
 
   const results = await new Promise((resolve, reject) => {
     connection.query(
       query,
-      [amount, sender, receiver, isExpense, user.user_id],
+      [amount, sender, receiver, normalizedIsExpense, user.user_id],
       (err, result) => {
         if (err) {
           reject(err);

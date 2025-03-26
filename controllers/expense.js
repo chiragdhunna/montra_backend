@@ -10,7 +10,25 @@ const unlinkAsync = promisify(fs.unlink);
 const addExpense = TryCatch(async (req, res, next) => {
   const user = req.user;
 
-  const { amount, source, description, bank_name } = req.body;
+  const { amount, source, description } = req.body;
+  const bank_name = req.body.bank_name?.trim() || null;
+  const wallet_name = req.body.wallet_name?.trim() || null;
+
+  const getWalletsQuery = `select name from wallet where user_id = $1`;
+
+  const wallets = await new Promise((resolve, reject) => {
+    connection.query(getWalletsQuery, [user.user_id], (err, result) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(result);
+      }
+    });
+  });
+
+  if (wallet_name != null && wallets.includes(wallet_name)) {
+    return next(new ErrorHandler("Wallet Name not Found", 404));
+  }
 
   const isValidSourceName = (name) => expenseSource.includes(name);
 
@@ -21,7 +39,6 @@ const addExpense = TryCatch(async (req, res, next) => {
   const isValidBankName = (name) => bankNames.includes(name);
 
   if (bank_name != null && !isValidBankName(bank_name)) {
-    console.error(`Invalid bank name ${bank_name}`);
     return next(new ErrorHandler("Invalid bank name", 400));
   }
 
@@ -43,6 +60,22 @@ const addExpense = TryCatch(async (req, res, next) => {
       connection.query(
         query,
         [amount, source, attachment, description, user.user_id, bank_name],
+        (err, result) => {
+          if (err) {
+            reject(err);
+          } else {
+            resolve(result);
+          }
+        }
+      );
+    });
+  } else if (wallet_name != null) {
+    const query = `INSERT INTO expense (amount, source, attachment, description, user_id, wallet_name) VALUES ($1, $2, $3, $4, $5, $6)`;
+
+    await new Promise((resolve, reject) => {
+      connection.query(
+        query,
+        [amount, source, attachment, description, user.user_id, wallet_name],
         (err, result) => {
           if (err) {
             reject(err);

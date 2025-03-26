@@ -74,18 +74,18 @@ const deleteWallet = TryCatch(async (req, res, next) => {
 
 const updateWallet = TryCatch(async (req, res, next) => {
   const user = req.user;
-  const { amount, walletName } = req.body;
+  const { amount, wallet_name, wallet_id } = req.body;
 
-  if (!walletName) {
+  if (!wallet_name) {
     return next(new ErrorHandler("Wallet name is required", 400));
   }
 
-  const query = `UPDATE wallet SET amount = $1 WHERE user_id = $2 AND name = $3`;
+  const query = `UPDATE wallet SET amount = $1, name = $2 WHERE user_id = $3 AND wallet_number = $4`;
 
   const result = await new Promise((resolve, reject) => {
     connection.query(
       query,
-      [amount, user.user_id, walletName],
+      [amount, wallet_name, user.user_id, wallet_id], // Corrected order
       (err, result) => {
         if (err) {
           reject(err);
@@ -97,16 +97,17 @@ const updateWallet = TryCatch(async (req, res, next) => {
   });
 
   if (result.rowCount === 0) {
+    // Ensure compatibility with DB type
     return next(new ErrorHandler("Wallet Update Unsuccessful", 500));
   }
 
-  res.send(result);
+  res.send({ success: true, message: "Wallet updated successfully" });
 });
 
-const getAllWallets = TryCatch(async (req, res, next) => {
+const getAllWalletNames = TryCatch(async (req, res, next) => {
   const user = req.user;
 
-  const query = `SELECT * FROM wallet WHERE user_id = $1`;
+  const query = `SELECT name FROM wallet WHERE user_id = $1`;
 
   const result = await new Promise((resolve, reject) => {
     connection.query(query, [user.user_id], (err, result) => {
@@ -118,7 +119,9 @@ const getAllWallets = TryCatch(async (req, res, next) => {
     });
   });
 
-  res.send({ wallets: result });
+  const walletNames = result.map((wallet) => wallet.name);
+
+  res.send({ wallets: walletNames });
 });
 
 const getWalletBalance = TryCatch(async (req, res, next) => {
@@ -140,10 +143,66 @@ const getWalletBalance = TryCatch(async (req, res, next) => {
   res.send({ balance });
 });
 
+const getAllWallets = TryCatch(async (req, res, next) => {
+  const user = req.user;
+
+  const walletCheckQuery = `SELECT * FROM wallet WHERE user_id = $1`;
+
+  const result = await new Promise((resolve, reject) => {
+    connection.query(walletCheckQuery, [user.user_id], (err, result) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(result);
+      }
+    });
+  });
+
+  res.send({ wallets: result });
+});
+
+const getWalletTransactions = TryCatch(async (req, res, next, err) => {
+  const { wallet_name } = req.body;
+  const user = req.user;
+
+  const incomeQuery = `select * from income where user_id = $1 and wallet_name = $2`;
+  const expenseQuery = `select * from expense where user_id = $1 and wallet_name = $2`;
+
+  const [incomeResults, expenseResults] = await Promise.all([
+    new Promise((resolve, reject) => {
+      connection.query(
+        incomeQuery,
+        [user.user_id, wallet_name],
+        (err, result) => {
+          if (err) reject(err);
+          else resolve(result);
+        }
+      );
+    }),
+    new Promise((resolve, reject) => {
+      connection.query(
+        expenseQuery,
+        [user.user_id, wallet_name],
+        (err, result) => {
+          if (err) reject(err);
+          else resolve(result);
+        }
+      );
+    }),
+  ]);
+
+  res.json({
+    incomes: incomeResults,
+    expenses: expenseResults,
+  });
+});
+
 export {
   createWallet,
   deleteWallet,
   updateWallet,
   getAllWallets,
   getWalletBalance,
+  getWalletTransactions,
+  getAllWalletNames,
 };

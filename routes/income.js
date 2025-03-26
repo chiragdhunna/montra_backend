@@ -51,6 +51,10 @@ const app = express.Router();
  *         multipart/form-data:
  *           schema:
  *             type: object
+ *             required:
+ *               - amount
+ *               - source
+ *               - file
  *             properties:
  *               amount:
  *                 type: number
@@ -60,11 +64,16 @@ const app = express.Router();
  *                 description: The source of income
  *               description:
  *                 type: string
+ *                 nullable: true
  *                 description: Additional details about the income
  *               bank_name:
  *                 type: string
  *                 nullable: true
  *                 description: The bank name (if applicable)
+ *               wallet_name:
+ *                 type: string
+ *                 nullable: true
+ *                 description: The wallet name (if applicable)
  *               file:
  *                 type: string
  *                 format: binary
@@ -72,10 +81,21 @@ const app = express.Router();
  *     responses:
  *       200:
  *         description: Income added successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
  *       400:
  *         description: Invalid income source or bank name
+ *       404:
+ *         description: Wallet name not found
  *       413:
  *         description: File upload failed or invalid file
+ *       500:
+ *         description: Internal server error
  */
 app.post("/add", upload.single("file"), addIncome);
 

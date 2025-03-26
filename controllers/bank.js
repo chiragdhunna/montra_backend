@@ -67,21 +67,19 @@ const deleteBankAccount = TryCatch(async (req, res, next) => {
 const updateBankAccount = TryCatch(async (req, res, next) => {
   const user = req.user;
 
-  const { amount, bankName } = req.body;
+  const { amount, account_number } = req.body;
 
-  const isValidBankName = (name) => bankNames.includes(name);
-
-  if (!isValidBankName(bankName)) {
-    return next(new ErrorHandler("Invalid bank name", 400));
-  }
-
-  const query = `UPDATE bank SET amount = $1 WHERE user_id = $2 AND name = $3`;
+  const query = `UPDATE bank SET amount = $1 WHERE user_id = $2 and account_number = $3`;
 
   const result = await new Promise((resolve, reject) => {
-    connection.query(query, [amount, user.user_id, bankName], (err, result) => {
-      if (err) reject(err);
-      else resolve(result);
-    });
+    connection.query(
+      query,
+      [amount, user.user_id, account_number],
+      (err, result) => {
+        if (err) reject(err);
+        else resolve(result);
+      }
+    );
   });
 
   if (result.rowCount === 0) {
@@ -123,10 +121,47 @@ const getBalance = TryCatch(async (req, res) => {
   res.send({ balance });
 });
 
+const getBankTransactions = TryCatch(async (req, res, next, err) => {
+  const { bank_name } = req.body;
+  const user = req.user;
+
+  const incomeQuery = `select * from income where user_id = $1 and bank_name = $2`;
+  const expenseQuery = `select * from expense where user_id = $1 and bank_name = $2`;
+
+  const [incomeResults, expenseResults] = await Promise.all([
+    new Promise((resolve, reject) => {
+      connection.query(
+        incomeQuery,
+        [user.user_id, bank_name],
+        (err, result) => {
+          if (err) reject(err);
+          else resolve(result);
+        }
+      );
+    }),
+    new Promise((resolve, reject) => {
+      connection.query(
+        expenseQuery,
+        [user.user_id, bank_name],
+        (err, result) => {
+          if (err) reject(err);
+          else resolve(result);
+        }
+      );
+    }),
+  ]);
+
+  res.json({
+    incomes: incomeResults,
+    expenses: expenseResults,
+  });
+});
+
 export {
   createBankAccount,
   deleteBankAccount,
   updateBankAccount,
   getAllBankAccounts,
   getBalance,
+  getBankTransactions,
 };

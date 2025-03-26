@@ -4,6 +4,7 @@ import {
   deleteBankAccount,
   getAllBankAccounts,
   getBalance,
+  getBankTransactions,
   updateBankAccount,
 } from "../controllers/bank.js";
 
@@ -126,21 +127,24 @@ app.delete("/delete", deleteBankAccount);
  *           schema:
  *             type: object
  *             required:
- *               - bankName
+ *               - account_number
  *               - amount
  *             properties:
- *               bankName:
+ *               account_number:
  *                 type: string
- *                 enum: [Chase, PayPal, Citi, Bank of America, Jago, Mandiri, BCA]
+ *                 description: The account number associated with the bank account
  *               amount:
  *                 type: number
+ *                 description: The new amount to update in the bank account
  *     responses:
  *       200:
  *         description: Bank account updated successfully
  *       400:
- *         description: Invalid bank name
+ *         description: Invalid request parameters
  *       404:
  *         description: Bank account not found
+ *       500:
+ *         description: Internal server error
  */
 app.post("/update", updateBankAccount);
 
@@ -167,5 +171,78 @@ app.post("/update", updateBankAccount);
  *         description: No bank accounts found
  */
 app.get("/balance", getBalance);
+
+/**
+ * @swagger
+ * /api/v1/bank/transactions:
+ *   post:
+ *     summary: Retrieve all transactions (income and expenses) for a specific bank
+ *     tags: [Banks]
+ *     security:
+ *       - ApiKeyAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - bank_name
+ *             properties:
+ *               bank_name:
+ *                 type: string
+ *                 description: The name of the bank to retrieve transactions for
+ *     responses:
+ *       200:
+ *         description: Successfully retrieved transactions
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 incomeResults:
+ *                   type: array
+ *                   description: List of income transactions
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: integer
+ *                         description: Transaction ID
+ *                       amount:
+ *                         type: number
+ *                         description: Amount of income
+ *                       bank_name:
+ *                         type: string
+ *                         description: Name of the bank
+ *                       user_id:
+ *                         type: integer
+ *                         description: User ID
+ *                 expenseResults:
+ *                   type: array
+ *                   description: List of expense transactions
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: integer
+ *                         description: Transaction ID
+ *                       amount:
+ *                         type: number
+ *                         description: Amount of expense
+ *                       bank_name:
+ *                         type: string
+ *                         description: Name of the bank
+ *                       user_id:
+ *                         type: integer
+ *                         description: User ID
+ *       400:
+ *         description: Invalid request body
+ *       404:
+ *         description: No transactions found for the given bank
+ *       500:
+ *         description: Internal server error
+ */
+app.post("/transactions", getBankTransactions);
 
 export default app;

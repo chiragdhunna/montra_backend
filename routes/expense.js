@@ -66,6 +66,10 @@ const app = express.Router();
  *                 type: string
  *                 nullable: true
  *                 description: The bank name (if applicable)
+ *               wallet_name:
+ *                 type: string
+ *                 nullable: true
+ *                 description: The wallet name (if applicable)
  *               file:
  *                 type: string
  *                 format: binary
@@ -74,7 +78,9 @@ const app = express.Router();
  *       200:
  *         description: Expense added successfully
  *       400:
- *         description: Invalid expense source or bank name
+ *         description: Invalid expense source, bank name, or wallet name
+ *       404:
+ *         description: Wallet name not found
  *       413:
  *         description: File upload failed or invalid file
  */

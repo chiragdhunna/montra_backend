@@ -2,8 +2,10 @@ import express from "express";
 import {
   createWallet,
   deleteWallet,
+  getAllWalletNames,
   getAllWallets,
   getWalletBalance,
+  getWalletTransactions,
   updateWallet,
 } from "../controllers/wallet.js";
 
@@ -52,8 +54,8 @@ app.post("/create", createWallet);
 /**
  * @swagger
  * /api/v1/wallet/update:
- *   post:
- *     summary: Update wallet amount
+ *   put:
+ *     summary: Update wallet details
  *     tags: [Wallet]
  *     security:
  *       - ApiKeyAuth: []
@@ -64,20 +66,28 @@ app.post("/create", createWallet);
  *           schema:
  *             type: object
  *             required:
- *               - walletName
+ *               - wallet_name
  *               - amount
+ *               - wallet_id
  *             properties:
- *               walletName:
+ *               wallet_name:
  *                 type: string
+ *                 description: The name of the wallet
  *               amount:
  *                 type: number
+ *                 description: The updated amount in the wallet
+ *               wallet_id:
+ *                 type: integer
+ *                 description: The unique ID of the wallet to be updated
  *     responses:
  *       200:
  *         description: Wallet updated successfully
+ *       400:
+ *         description: Bad request - Missing required fields
  *       500:
- *         description: Update failed
+ *         description: Update failed due to a server error
  */
-app.post("/update", updateWallet);
+app.put("/update", updateWallet);
 
 /**
  * @swagger
@@ -146,5 +156,105 @@ app.get("/balance", getWalletBalance);
  *         description: No wallet found to delete
  */
 app.delete("/delete", deleteWallet);
+
+/**
+ * @swagger
+ * /api/v1/wallet/transactions:
+ *   post:
+ *     summary: Retrieve wallet transactions (income & expenses)
+ *     tags: [Wallet]
+ *     security:
+ *       - ApiKeyAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - wallet_name
+ *             properties:
+ *               wallet_name:
+ *                 type: string
+ *                 description: Name of the wallet to fetch transactions for
+ *     responses:
+ *       200:
+ *         description: List of income and expense transactions
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 incomes:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: integer
+ *                       amount:
+ *                         type: number
+ *                       category:
+ *                         type: string
+ *                       date:
+ *                         type: string
+ *                         format: date-time
+ *                       description:
+ *                         type: string
+ *                 expenses:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: integer
+ *                       amount:
+ *                         type: number
+ *                       category:
+ *                         type: string
+ *                       date:
+ *                         type: string
+ *                         format: date-time
+ *                       description:
+ *                         type: string
+ *       400:
+ *         description: Bad request, missing or invalid parameters
+ *       500:
+ *         description: Internal server error
+ */
+app.post("/transactions", getWalletTransactions);
+
+/**
+ * @swagger
+ * /api/v1/wallet/wallets:
+ *   get:
+ *     summary: Get all wallet names for the authenticated user
+ *     tags: [Wallet]
+ *     security:
+ *       - ApiKeyAuth: []
+ *     responses:
+ *       200:
+ *         description: A list of wallet names
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 wallets:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *                   example:
+ *                     - "Wallet Name 1"
+ *                     - "Wallet Name 2"
+ *                     - "Wallet Name 3"
+ *                     - "Wallet Name 4"
+ *                     - "Wallet Name 5"
+ *       401:
+ *         description: Unauthorized - User not authenticated
+ *       500:
+ *         description: Internal server error
+ */
+app.get("/wallets", getAllWalletNames);
 
 export default app;

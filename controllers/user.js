@@ -98,6 +98,41 @@ const login = TryCatch((req, res, next) => {
   });
 });
 
+const getMe = TryCatch((req, res, next) => {
+  const user = req.user;
+
+  if (!user) {
+    return next(new ErrorHandler("User not authorized", 401));
+  }
+
+  // Updated query for PostgreSQL
+  const query = `SELECT user_id, name, email, img_url FROM users WHERE user_id = $1`;
+
+  connection.query(query, [user.user_id], (err, result) => {
+    if (err) {
+      console.error("Get user error:", err);
+      return next(new ErrorHandler("User not found", 404));
+    }
+
+    if (!result || result.length === 0) {
+      return next(new ErrorHandler("User not found", 404));
+    }
+
+    const { user_id: userId, email } = req.user;
+
+    const token = jwt.sign(
+      { userId: userId, email: email },
+      process.env.JWT_SECRET
+    );
+
+    res.status(200).json({
+      success: true,
+      user: result[0],
+      token,
+    });
+  });
+});
+
 const imageUpload = TryCatch((req, res, next) => {
   // Check whether req.file contains the file
   if (!req.file) {
@@ -973,40 +1008,5 @@ function createTable(doc, headers, rows, options = {}) {
 
   return doc;
 }
-
-const getMe = TryCatch((req, res, next) => {
-  const user = req.user;
-
-  if (!user) {
-    return next(new ErrorHandler("User not authorized", 401));
-  }
-
-  // Updated query for PostgreSQL
-  const query = `SELECT user_id, name, email, img_url FROM users WHERE user_id = $1`;
-
-  connection.query(query, [user.user_id], (err, result) => {
-    if (err) {
-      console.error("Get user error:", err);
-      return next(new ErrorHandler("User not found", 404));
-    }
-
-    if (!result || result.length === 0) {
-      return next(new ErrorHandler("User not found", 404));
-    }
-
-    const { user_id: userId, email } = req.user;
-
-    const token = jwt.sign(
-      { userId: userId, email: email },
-      process.env.JWT_SECRET
-    );
-
-    res.status(200).json({
-      success: true,
-      user: result[0],
-      token,
-    });
-  });
-});
 
 export { signup, login, imageUpload, logout, exportData, getImage, getMe };

@@ -51,12 +51,30 @@ const app = express.Router();
  *       content:
  *         multipart/form-data:
  *           schema:
- *             $ref: '#/components/schemas/Expense'
+ *             type: object
+ *             properties:
+ *               amount:
+ *                 type: number
+ *                 description: The amount of the expense
+ *               source:
+ *                 type: string
+ *                 description: The source of the expense
+ *               description:
+ *                 type: string
+ *                 description: Additional details about the expense
+ *               bank_name:
+ *                 type: string
+ *                 nullable: true
+ *                 description: The bank name (if applicable)
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *                 description: Attachment file (JPEG under 5MB)
  *     responses:
  *       200:
  *         description: Expense added successfully
  *       400:
- *         description: Invalid expense source
+ *         description: Invalid expense source or bank name
  *       413:
  *         description: File upload failed or invalid file
  */

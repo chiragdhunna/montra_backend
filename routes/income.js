@@ -50,12 +50,30 @@ const app = express.Router();
  *       content:
  *         multipart/form-data:
  *           schema:
- *             $ref: '#/components/schemas/Income'
+ *             type: object
+ *             properties:
+ *               amount:
+ *                 type: number
+ *                 description: The amount of income
+ *               source:
+ *                 type: string
+ *                 description: The source of income
+ *               description:
+ *                 type: string
+ *                 description: Additional details about the income
+ *               bank_name:
+ *                 type: string
+ *                 nullable: true
+ *                 description: The bank name (if applicable)
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *                 description: Attachment file (JPEG under 5MB)
  *     responses:
  *       200:
  *         description: Income added successfully
  *       400:
- *         description: Invalid income source
+ *         description: Invalid income source or bank name
  *       413:
  *         description: File upload failed or invalid file
  */

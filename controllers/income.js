@@ -1,3 +1,4 @@
+import { bankNames } from "../constants/bank.js";
 import { incomeSource } from "../constants/income.js";
 import connection from "../database/db.js";
 import { TryCatch } from "../middlewares/error.js";
@@ -10,12 +11,18 @@ const unlinkAsync = promisify(fs.unlink);
 const addIncome = TryCatch(async (req, res, next) => {
   const user = req.user;
 
-  const { amount, source, description } = req.body;
+  const { amount, source, description, bank_name } = req.body;
 
   const isValidSourceName = (name) => incomeSource.includes(name);
 
   if (!isValidSourceName(source)) {
     return next(new ErrorHandler("Invalid income source", 400));
+  }
+
+  const isValidBankName = (name) => bankNames.includes(name);
+
+  if (bank_name != null && !isValidBankName(bank_name)) {
+    return next(new ErrorHandler("Invalid bank name", 400));
   }
 
   // check whether req.file contains the file
@@ -29,21 +36,39 @@ const addIncome = TryCatch(async (req, res, next) => {
 
   const attachment = req.file.path;
 
-  const query = `INSERT INTO income (amount, source, attachment, description, user_id) VALUES ($1, $2, $3, $4, $5)`;
+  if (bank_name != null) {
+    const query = `INSERT INTO income (amount, source, attachment, description, user_id, bank_name) VALUES ($1, $2, $3, $4, $5, $6)`;
 
-  await new Promise((resolve, reject) => {
-    connection.query(
-      query,
-      [amount, source, attachment, description, user.user_id],
-      (err, result) => {
-        if (err) {
-          reject(err);
-        } else {
-          resolve(result);
+    await new Promise((resolve, reject) => {
+      connection.query(
+        query,
+        [amount, source, attachment, description, user.user_id, bank_name],
+        (err, result) => {
+          if (err) {
+            reject(err);
+          } else {
+            resolve(result);
+          }
         }
-      }
-    );
-  });
+      );
+    });
+  } else {
+    const query = `INSERT INTO income (amount, source, attachment, description, user_id) VALUES ($1, $2, $3, $4, $5)`;
+
+    await new Promise((resolve, reject) => {
+      connection.query(
+        query,
+        [amount, source, attachment, description, user.user_id],
+        (err, result) => {
+          if (err) {
+            reject(err);
+          } else {
+            resolve(result);
+          }
+        }
+      );
+    });
+  }
 
   res.send({ success: true });
 });

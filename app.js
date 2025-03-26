@@ -39,6 +39,10 @@ app.use("/api/v1/budget", authentication, budgetRoute);
 
 app.use(errorMiddleware);
 
-app.listen(port, () => {
+app.get("/api/v1/test", (req, res) => {
+  res.send({ test: "Api Fetched Successfully" });
+});
+
+app.listen(port, "0.0.0.0", () => {
   console.log(`app listening on port ${port}`);
 });

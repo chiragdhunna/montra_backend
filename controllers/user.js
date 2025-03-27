@@ -235,6 +235,56 @@ const exportData = TryCatch(async (req, res, next) => {
 
   // Prepare data queries based on dataType
   const queries = {
+    income: `
+    SELECT 
+      'income' as type, 
+      i.income_id::text as id, 
+      i.user_id::text, 
+      i.amount::text, 
+      i.source,
+      i.attachment,
+      i.description, 
+      i.created_at::text
+    FROM income i 
+    WHERE i.user_id = $1 AND i.created_at >= $2
+  `,
+    expense: `
+    SELECT 
+      'expense' as type, 
+      e.expense_id::text as id, 
+      e.user_id::text, 
+      e.amount::text, 
+      e.source,
+      e.attachment,
+      e.description, 
+      e.created_at::text
+    FROM expense e 
+    WHERE e.user_id = $1 AND e.created_at >= $2
+  `,
+    transfer: `
+    SELECT 
+      'transfer' as type, 
+      t.transfer_id::text as id, 
+      t.user_id::text, 
+      t.amount::text, 
+      t.sender,
+      t.receiver,
+      t.created_at::text
+    FROM transfer t 
+    WHERE t.user_id = $1 AND t.created_at >= $2
+  `,
+    budget: `
+    SELECT 
+      'budget' as type, 
+      b.budget_id::text as id, 
+      b.user_id::text, 
+      b.name,
+      b.total_budget::text,
+      b.current::text,
+      b.created_at::text
+    FROM budget b 
+    WHERE b.user_id = $1 AND b.created_at >= $2
+  `,
     all: `
       WITH expense_data AS (
         SELECT 
@@ -418,98 +468,28 @@ const generateCSV = async (data, filepath, res, dataType) => {
 };
 
 const generatePDF = async (data, filepath, res, dataType, req) => {
-  console.log("generatePDF called with arguments:", {
-    dataType,
-    filepath,
-    hasData: Array.isArray(data) && data.length > 0,
-    hasReq: !!req,
-    hasUser: req ? !!req.user : false,
-  });
+  console.log("Data for generatePDF", data.length);
 
-  if (!req) {
-    console.error("Error: req is undefined in generatePDF function");
-    return res.status(500).json({
-      success: false,
-      message: "Internal Server Error: Request object is missing",
-    });
-  }
-
-  const fullFilepath = path.join(process.cwd(), filepath);
-
-  if (!fs.existsSync(path.dirname(fullFilepath))) {
-    fs.mkdirSync(path.dirname(fullFilepath), { recursive: true });
-  }
-
-  // Get the user ID from the request
-  const userId = req.user ? req.user.user_id : null;
-
-  if (!userId) {
+  if (!req || !req.user) {
     return res.status(401).json({
       success: false,
       message: "User not authenticated",
     });
   }
 
-  // Fetch all necessary data from the database
+  const userId = req.user.user_id;
+  const fullFilepath = path.join(process.cwd(), filepath);
+
+  if (!fs.existsSync(path.dirname(fullFilepath))) {
+    fs.mkdirSync(path.dirname(fullFilepath), { recursive: true });
+  }
+
   try {
-    // First, fetch user information - note the double quotes for "user" table (PostgreSQL reserved keyword)
+    // Fetch user info
     const userQuery = "SELECT name, email FROM users WHERE user_id = $1";
     const userResult = await queryDatabase(userQuery, [userId]);
     const user = userResult[0] || { name: "User", email: "user@example.com" };
 
-    // Fetch summary data - using double quotes for aliased column names
-    const incomeQuery =
-      'SELECT SUM(amount) as "totalIncome" FROM income WHERE user_id = $1';
-    const incomeResult = await queryDatabase(incomeQuery, [userId]);
-    const totalIncome = incomeResult[0]?.totalIncome || 0;
-
-    const expenseQuery =
-      'SELECT SUM(amount) as "totalExpense" FROM expense WHERE user_id = $1';
-    const expenseResult = await queryDatabase(expenseQuery, [userId]);
-    const totalExpense = expenseResult[0]?.totalExpense || 0;
-
-    const transferQuery =
-      'SELECT SUM(amount) as "totalTransfer" FROM transfer WHERE user_id = $1';
-    const transferResult = await queryDatabase(transferQuery, [userId]);
-    const totalTransfer = transferResult[0]?.totalTransfer || 0;
-
-    const budgetQuery =
-      'SELECT SUM(total_budget) as "totalBudget" FROM budget WHERE user_id = $1';
-    const budgetResult = await queryDatabase(budgetQuery, [userId]);
-    const totalBudget = budgetResult[0]?.totalBudget || 0;
-
-    // Fetch detailed data - using PostgreSQL's TO_CHAR for date formatting
-    const budgetsQuery =
-      "SELECT name, total_budget, current, (total_budget - current) as remaining FROM budget WHERE user_id = $1 ORDER BY created_at DESC LIMIT 10";
-    const budgetsResult = await queryDatabase(budgetsQuery, [userId]);
-
-    const incomeDetailsQuery =
-      "SELECT TO_CHAR(created_at, 'DD-MM-YYYY') as date, amount, source, description FROM income WHERE user_id = $1 ORDER BY created_at DESC LIMIT 10";
-    const incomeDetailsResult = await queryDatabase(incomeDetailsQuery, [
-      userId,
-    ]);
-
-    const expenseDetailsQuery =
-      "SELECT TO_CHAR(created_at, 'DD-MM-YYYY') as date, amount, source, description FROM expense WHERE user_id = $1 ORDER BY created_at DESC LIMIT 10";
-    const expenseDetailsResult = await queryDatabase(expenseDetailsQuery, [
-      userId,
-    ]);
-
-    const transferDetailsQuery =
-      "SELECT TO_CHAR(created_at, 'DD-MM-YYYY') as date, amount, sender, receiver FROM transfer WHERE user_id = $1 ORDER BY created_at DESC LIMIT 10";
-    const transferDetailsResult = await queryDatabase(transferDetailsQuery, [
-      userId,
-    ]);
-
-    const walletQuery =
-      "SELECT name, amount, wallet_number FROM wallet WHERE user_id = $1";
-    const walletResult = await queryDatabase(walletQuery, [userId]);
-
-    const bankQuery =
-      "SELECT name, amount, account_number FROM bank WHERE user_id = $1";
-    const bankResult = await queryDatabase(bankQuery, [userId]);
-
-    // Now generate the PDF with the actual data
     const doc = new PDFDocument({
       margin: 50,
       size: "A4",
@@ -519,212 +499,193 @@ const generatePDF = async (data, filepath, res, dataType, req) => {
     const writeStream = fs.createWriteStream(`${fullFilepath}.pdf`);
     doc.pipe(writeStream);
 
-    // Define a consistent starting position for all sections
     const startX = 50;
-    const pageWidth = doc.page.width - 100; // Account for margins
+    const pageWidth = doc.page.width - 100;
 
-    // Cover Page - Title
+    // Title and User Info
     doc
       .fontSize(22)
       .font("Helvetica-Bold")
       .text("Comprehensive Financial Report", { align: "center" });
     doc.moveDown(2);
-
-    // User Information
     doc.fontSize(16).font("Helvetica-Bold").text("User Information", startX);
     doc.moveDown(0.5);
-    doc.fontSize(12).font("Helvetica").text(`Name: ${user.name}`, startX);
-    doc.text(`Email: ${user.email}`, startX);
-    doc.text(
-      `Report Type: ${
-        dataType.charAt(0).toUpperCase() + dataType.slice(1)
-      } Financial Report`,
-      startX
-    );
+    doc
+      .fontSize(12)
+      .font("Helvetica")
+      .text(`Name: ${user.name}`, startX)
+      .text(`Email: ${user.email}`, startX)
+      .text(
+        `Report Type: ${
+          dataType.charAt(0).toUpperCase() + dataType.slice(1)
+        } Financial Report`,
+        startX
+      );
 
-    // Current date for the report
     const currentDate = new Date();
-    const options = { year: "numeric", month: "long", day: "numeric" };
-    const formattedDate = currentDate.toLocaleDateString("en-US", options);
+    const formattedDate = currentDate.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
     doc.text(`Generated On: ${formattedDate}`, startX);
     doc.moveDown(2);
 
-    // Financial Summary
-    doc.fontSize(16).font("Helvetica-Bold").text("Financial Summary", startX);
-    doc.moveDown(0.5);
+    // Section Rendering Based on Data Type
+    const renderTable = (title, headers, rows, emptyMsg) => {
+      if (doc.y > doc.page.height - 200) doc.addPage();
+      doc.fontSize(16).font("Helvetica-Bold").text(title, startX);
+      doc.moveDown(0.5);
+      createTable(
+        doc,
+        headers,
+        rows.length > 0
+          ? rows
+          : [[emptyMsg, ...Array(headers.length - 1).fill("")]]
+      );
+      doc.moveDown(2);
+    };
 
-    // Create a summary table instead of simple text
-    const summaryHeaders = ["Metric", "Amount"];
-    const summaryRows = [
-      ["Total Income", `$${formatMoney(totalIncome)}`],
-      ["Total Expenses", `$${formatMoney(totalExpense)}`],
-      ["Net Balance", `$${formatMoney(totalIncome - totalExpense)}`],
-      ["Total Transfers", `$${formatMoney(totalTransfer)}`],
-      ["Total Budgets", `$${formatMoney(totalBudget)}`],
-    ];
-
-    createTable(doc, summaryHeaders, summaryRows);
-    doc.moveDown(2);
-
-    // Budgets Overview - Table format
-    doc.fontSize(16).font("Helvetica-Bold").text("Budgets Overview", startX);
-    doc.moveDown(0.5);
-
-    // Budgets table
-    const budgetHeaders = [
-      "Budget Name",
-      "Total Budget",
-      "Current Spent",
-      "Remaining",
-    ];
-    const budgetRows = budgetsResult.map((budget) => [
-      budget.name,
-      `$${formatMoney(budget.total_budget)}`,
-      `$${formatMoney(budget.current)}`,
-      `$${formatMoney(budget.remaining)}`,
-    ]);
-
-    createTable(
-      doc,
-      budgetHeaders,
-      budgetRows.length > 0
-        ? budgetRows
-        : [["No budget data available", "", "", ""]]
-    );
-    doc.moveDown(2);
-
-    // Check if we need a new page
-    if (doc.y > doc.page.height - 200) {
-      doc.addPage();
+    if (dataType === "income") {
+      const incomeHeaders = ["Date", "Amount", "Source", "Description"];
+      const incomeRows = data.map((row) => [
+        row.created_at,
+        `$${formatMoney(row.amount)}`,
+        row.source || "N/A",
+        row.description || "N/A",
+      ]);
+      renderTable(
+        "Income Details",
+        incomeHeaders,
+        incomeRows,
+        "No income data available"
+      );
     }
 
-    // Income Details - Table format
-    doc.fontSize(16).font("Helvetica-Bold").text("Income Details", startX);
-    doc.moveDown(0.5);
-
-    const incomeHeaders = ["Date", "Amount", "Source", "Description"];
-    const incomeRows = incomeDetailsResult.map((income) => [
-      income.date,
-      `$${formatMoney(income.amount)}`,
-      income.source || "N/A",
-      income.description || "N/A",
-    ]);
-
-    createTable(
-      doc,
-      incomeHeaders,
-      incomeRows.length > 0
-        ? incomeRows
-        : [["No income data available", "", "", ""]]
-    );
-    doc.moveDown(2);
-
-    // Check if we need a new page
-    if (doc.y > doc.page.height - 200) {
-      doc.addPage();
+    if (dataType === "expense") {
+      const expenseHeaders = ["Date", "Amount", "Source", "Description"];
+      const expenseRows = data.map((row) => [
+        row.created_at,
+        `$${formatMoney(row.amount)}`,
+        row.source || "N/A",
+        row.description || "N/A",
+      ]);
+      renderTable(
+        "Expense Details",
+        expenseHeaders,
+        expenseRows,
+        "No expense data available"
+      );
     }
 
-    // Expense Details - Table format
-    doc.fontSize(16).font("Helvetica-Bold").text("Expense Details", startX);
-    doc.moveDown(0.5);
-
-    const expenseHeaders = ["Date", "Amount", "Source", "Description"];
-    const expenseRows = expenseDetailsResult.map((expense) => [
-      expense.date,
-      `$${formatMoney(expense.amount)}`,
-      expense.source || "N/A",
-      expense.description || "N/A",
-    ]);
-
-    createTable(
-      doc,
-      expenseHeaders,
-      expenseRows.length > 0
-        ? expenseRows
-        : [["No expense data available", "", "", ""]]
-    );
-    doc.moveDown(2);
-
-    // Check if we need a new page
-    if (doc.y > doc.page.height - 200) {
-      doc.addPage();
+    if (dataType === "transfer") {
+      const transferHeaders = ["Date", "Amount", "Sender", "Receiver"];
+      const transferRows = data.map((row) => [
+        row.created_at,
+        `$${formatMoney(row.amount)}`,
+        row.sender || "N/A",
+        row.receiver || "N/A",
+      ]);
+      renderTable(
+        "Transfer Details",
+        transferHeaders,
+        transferRows,
+        "No transfer data available"
+      );
     }
 
-    // Transfer Details - Table format
-    doc.fontSize(16).font("Helvetica-Bold").text("Transfer Details", startX);
-    doc.moveDown(0.5);
-
-    const transferHeaders = ["Date", "Amount", "Sender", "Receiver"];
-    const transferRows = transferDetailsResult.map((transfer) => [
-      transfer.date,
-      `$${formatMoney(transfer.amount)}`,
-      transfer.sender || "N/A",
-      transfer.receiver || "N/A",
-    ]);
-
-    createTable(
-      doc,
-      transferHeaders,
-      transferRows.length > 0
-        ? transferRows
-        : [["No transfer data available", "", "", ""]]
-    );
-    doc.moveDown(2);
-
-    // Check if we need a new page
-    if (doc.y > doc.page.height - 200) {
-      doc.addPage();
+    if (dataType === "budget") {
+      const budgetHeaders = [
+        "Budget Name",
+        "Total Budget",
+        "Current Spent",
+        "Remaining",
+      ];
+      const budgetRows = data.map((row) => [
+        row.name,
+        `$${formatMoney(row.total_budget)}`,
+        `$${formatMoney(row.current)}`,
+        `$${formatMoney(row.total_budget - row.current)}`,
+      ]);
+      renderTable(
+        "Budgets Overview",
+        budgetHeaders,
+        budgetRows,
+        "No budget data available"
+      );
     }
 
-    // Wallet Overview - Table format
-    doc.fontSize(16).font("Helvetica-Bold").text("Wallet Overview", startX);
-    doc.moveDown(0.5);
+    if (dataType === "all") {
+      const sections = {
+        income: {
+          title: "Income Details",
+          headers: ["Date", "Amount", "Source", "Description"],
+          rows: data
+            .filter((d) => d.type === "income")
+            .map((row) => [
+              row.created_at,
+              `$${formatMoney(row.amount)}`,
+              row.source || "N/A",
+              row.description || "N/A",
+            ]),
+        },
+        expense: {
+          title: "Expense Details",
+          headers: ["Date", "Amount", "Source", "Description"],
+          rows: data
+            .filter((d) => d.type === "expense")
+            .map((row) => [
+              row.created_at,
+              `$${formatMoney(row.amount)}`,
+              row.source || "N/A",
+              row.description || "N/A",
+            ]),
+        },
+        transfer: {
+          title: "Transfer Details",
+          headers: ["Date", "Amount", "Sender", "Receiver"],
+          rows: data
+            .filter((d) => d.type === "transfer")
+            .map((row) => [
+              row.created_at,
+              `$${formatMoney(row.amount)}`,
+              row.sender || "N/A",
+              row.receiver || "N/A",
+            ]),
+        },
+        budget: {
+          title: "Budgets Overview",
+          headers: [
+            "Budget Name",
+            "Total Budget",
+            "Current Spent",
+            "Remaining",
+          ],
+          rows: data
+            .filter((d) => d.type === "budget")
+            .map((row) => [
+              row.name,
+              `$${formatMoney(row.total_budget)}`,
+              `$${formatMoney(row.current)}`,
+              `$${formatMoney(row.total_budget - row.current)}`,
+            ]),
+        },
+      };
 
-    const walletHeaders = ["Wallet Name", "Amount", "Wallet Number"];
-    const walletRows = walletResult.map((wallet) => [
-      wallet.name,
-      `$${formatMoney(wallet.amount)}`,
-      wallet.wallet_number,
-    ]);
-
-    createTable(
-      doc,
-      walletHeaders,
-      walletRows.length > 0
-        ? walletRows
-        : [["No wallet data available", "", ""]]
-    );
-    doc.moveDown(2);
-
-    // Check if we need a new page
-    if (doc.y > doc.page.height - 200) {
-      doc.addPage();
+      for (const section of Object.values(sections)) {
+        renderTable(
+          section.title,
+          section.headers,
+          section.rows,
+          `No ${section.title.toLowerCase()} data available`
+        );
+      }
     }
 
-    // Bank Overview - Table format
-    doc.fontSize(16).font("Helvetica-Bold").text("Bank Overview", startX);
-    doc.moveDown(0.5);
-
-    const bankHeaders = ["Bank Name", "Amount", "Account Number"];
-    const bankRows = bankResult.map((bank) => [
-      bank.name,
-      `$${formatMoney(bank.amount)}`,
-      bank.account_number,
-    ]);
-
-    createTable(
-      doc,
-      bankHeaders,
-      bankRows.length > 0 ? bankRows : [["No bank data available", "", ""]]
-    );
-
-    // Add page numbers and headers to all pages
+    // Add page numbers
     const totalPages = doc.bufferedPageRange().count;
-
     for (let i = 0; i < totalPages; i++) {
       doc.switchToPage(i);
-
-      // Add header
       doc
         .fontSize(10)
         .font("Helvetica")
@@ -736,8 +697,6 @@ const generatePDF = async (data, filepath, res, dataType, req) => {
         .moveTo(50, 35)
         .lineTo(pageWidth + 50, 35)
         .stroke();
-
-      // Add footer with page number
       doc
         .fontSize(10)
         .font("Helvetica")
@@ -899,16 +858,7 @@ function queryDatabase(query, params = []) {
   });
 }
 
-/**
- * Creates a formatted table in the PDF document
- * @param {PDFDocument} doc - PDF document object
- * @param {Array<string>} headers - Array of table headers
- * @param {Array<Array>} rows - Array of table rows (each an array of values)
- * @param {Object} options - Optional configuration settings
- * @returns {PDFDocument} - Updated PDF document object
- */
 function createTable(doc, headers, rows, options = {}) {
-  // Default options
   const defaults = {
     tableWidth: 500,
     startX: 50,
@@ -921,92 +871,89 @@ function createTable(doc, headers, rows, options = {}) {
     headerFont: "Helvetica-Bold",
     bodyFont: "Helvetica",
     fontSize: 10,
+    marginBottom: 30,
   };
 
-  // Merge default options with provided options
   const config = { ...defaults, ...options };
-
   const colCount = headers.length;
   const colWidth = config.tableWidth / colCount;
   let y = doc.y;
 
-  // Set font size
-  doc.fontSize(config.fontSize);
+  const renderHeader = () => {
+    doc
+      .font(config.headerFont)
+      .fontSize(config.fontSize)
+      .fillColor(config.textColor)
+      .rect(config.startX, y, config.tableWidth, config.rowHeight)
+      .fillAndStroke(config.headerBgColor, config.borderColor);
 
-  // Draw table headers with proper alignment and spacing
-  doc.font(config.headerFont);
+    headers.forEach((header, i) => {
+      doc.text(
+        header,
+        config.startX + i * colWidth + 5,
+        y + config.rowHeight / 3,
+        { width: colWidth - 10, align: "left" }
+      );
+    });
 
-  // Draw header background
-  doc
-    .rect(config.startX, y, config.tableWidth, config.rowHeight)
-    .fillAndStroke(config.headerBgColor, config.borderColor);
+    y += config.rowHeight;
+    doc.y = y;
+  };
 
-  // Draw header text with proper positioning
-  headers.forEach((header, i) => {
-    doc.fillColor(config.textColor).text(
-      header,
-      config.startX + i * colWidth + 5,
-      y + config.rowHeight / 3, // Better vertical centering
-      {
-        width: colWidth - 10,
-        align: "left",
-      }
-    );
-  });
+  const addNewPageIfNeeded = () => {
+    if (y + config.rowHeight > doc.page.height - config.marginBottom) {
+      doc.addPage();
+      y = config.startX;
+      renderHeader();
+    }
+  };
 
-  // Move to next row
-  y += config.rowHeight;
-
-  // Switch to normal font for data rows
+  // Render header first
+  renderHeader();
   doc.font(config.bodyFont);
 
-  // Draw data rows
   rows.forEach((row, rowIndex) => {
-    // Alternate row colors for better readability
+    addNewPageIfNeeded();
+
     const fillColor =
       rowIndex % 2 === 0 ? config.evenRowBgColor : config.oddRowBgColor;
 
-    // Draw row background
     doc
       .rect(config.startX, y, config.tableWidth, config.rowHeight)
       .fillAndStroke(fillColor, config.borderColor);
 
-    // Draw cell text with proper positioning
     row.forEach((cell, colIndex) => {
-      // Determine text alignment based on content type (support for currency and numbers)
-      let align = "left";
       const cellText =
         cell !== null && cell !== undefined ? cell.toString() : "N/A";
 
-      // Right-align currency values and numbers
-      if (
+      const align =
         typeof cell === "number" ||
         cellText.startsWith("$") ||
         (!isNaN(parseFloat(cellText)) && isFinite(cellText))
-      ) {
-        align = "right";
-      }
+          ? "right"
+          : "left";
 
-      const cellY = y + config.rowHeight / 3; // Better vertical centering
-      const cellX = config.startX + colIndex * colWidth + 5;
-      const cellWidth = colWidth - 10;
-
-      doc.fillColor(config.textColor).text(cellText, cellX, cellY, {
-        width: cellWidth,
-        align: align,
-        lineBreak: true,
-        height: config.rowHeight - 15, // Limit text height to prevent overflow
-      });
+      doc
+        .fillColor(config.textColor)
+        .text(
+          cellText,
+          config.startX + colIndex * colWidth + 5,
+          y + config.rowHeight / 3,
+          {
+            width: colWidth - 10,
+            align: align,
+            lineBreak: true,
+            height: config.rowHeight - 15,
+          }
+        );
     });
 
-    // Move to next row
     y += config.rowHeight;
+    doc.y = y;
   });
 
-  // Update doc.y position after the table with some padding
+  // Push doc.y for next section
   doc.y = y + 10;
-
-  return doc;
 }
 
 export { signup, login, imageUpload, logout, exportData, getImage, getMe };

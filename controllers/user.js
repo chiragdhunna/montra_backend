@@ -229,8 +229,12 @@ const exportData = TryCatch(async (req, res, next) => {
       break;
   }
 
+  // ✅ Add this line
+  currentDate.setHours(0, 0, 0, 0); // Reset to start of day
+
   // PostgreSQL uses different date formatting and parameter style
-  const formattedDate = currentDate.toISOString();
+  const formattedDate = currentDate.toISOString(); // keep it in ISO format
+
   let dateQuery = "AND created_at >= $2";
 
   // Prepare data queries based on dataType
@@ -244,9 +248,9 @@ const exportData = TryCatch(async (req, res, next) => {
       i.source,
       i.attachment,
       i.description, 
-      i.created_at::text
+      TO_CHAR(i.created_at, 'YYYY-MM-DD') as created_at
     FROM income i 
-    WHERE i.user_id = $1 AND i.created_at >= $2
+    WHERE i.user_id = $1 AND i.created_at >= $2::timestamp
   `,
     expense: `
     SELECT 
@@ -257,22 +261,22 @@ const exportData = TryCatch(async (req, res, next) => {
       e.source,
       e.attachment,
       e.description, 
-      e.created_at::text
+      TO_CHAR(e.created_at, 'YYYY-MM-DD') as created_at
     FROM expense e 
-    WHERE e.user_id = $1 AND e.created_at >= $2
+    WHERE e.user_id = $1 AND e.created_at >= $2::timestamp
   `,
     transfer: `
-    SELECT 
-      'transfer' as type, 
-      t.transfer_id::text as id, 
-      t.user_id::text, 
-      t.amount::text, 
-      t.sender,
-      t.receiver,
-      t.created_at::text
-    FROM transfer t 
-    WHERE t.user_id = $1 AND t.created_at >= $2
-  `,
+      SELECT 
+        'transfer' as type, 
+        t.transfer_id::text as id, 
+        t.user_id::text, 
+        t.amount::text, 
+        t.sender,
+        t.receiver,
+        TO_CHAR(t.created_at, 'YYYY-MM-DD') as created_at
+      FROM transfer t 
+      WHERE t.user_id = $1 AND t.created_at >= $2::timestamp
+    `,
     budget: `
     SELECT 
       'budget' as type, 
@@ -281,9 +285,9 @@ const exportData = TryCatch(async (req, res, next) => {
       b.name,
       b.total_budget::text,
       b.current::text,
-      b.created_at::text
+      TO_CHAR(b.created_at, 'YYYY-MM-DD') as created_at
     FROM budget b 
-    WHERE b.user_id = $1 AND b.created_at >= $2
+    WHERE b.user_id = $1 AND b.created_at >= $2::timestamp
   `,
     all: `
       WITH expense_data AS (
@@ -295,7 +299,7 @@ const exportData = TryCatch(async (req, res, next) => {
           e.source,
           e.attachment,
           e.description, 
-          e.created_at::text,
+          TO_CHAR(e.created_at, 'YYYY-MM-DD') as created_at,
           NULL::text as sender,
           NULL::text as receiver,
           'false'::text as is_expense,
@@ -303,7 +307,7 @@ const exportData = TryCatch(async (req, res, next) => {
           NULL::text as total_budget,
           NULL::text as current
         FROM expense e 
-        WHERE e.user_id = $1 AND e.created_at >= $2
+        WHERE e.user_id = $1 AND e.created_at >= $2::timestamp
       ),
       income_data AS (
         SELECT 
@@ -314,7 +318,7 @@ const exportData = TryCatch(async (req, res, next) => {
           i.source,
           i.attachment,
           i.description, 
-          i.created_at::text,
+          TO_CHAR(i.created_at, 'YYYY-MM-DD') as created_at,
           NULL::text as sender,
           NULL::text as receiver,
           'false'::text as is_expense,
@@ -322,7 +326,7 @@ const exportData = TryCatch(async (req, res, next) => {
           NULL::text as total_budget,
           NULL::text as current
         FROM income i 
-        WHERE i.user_id = $1 AND i.created_at >= $2
+        WHERE i.user_id = $1 AND i.created_at >= $2::timestamp
       ),
       transfer_data AS (
         SELECT 
@@ -333,7 +337,7 @@ const exportData = TryCatch(async (req, res, next) => {
           NULL::text as source,
           NULL::text as attachment,
           NULL::text as description, 
-          t.created_at::text,
+          TO_CHAR(t.created_at, 'YYYY-MM-DD') as created_at,
           t.sender,
           t.receiver,
           t.is_expense::text,
@@ -341,7 +345,7 @@ const exportData = TryCatch(async (req, res, next) => {
           NULL::text as total_budget,
           NULL::text as current
         FROM transfer t 
-        WHERE t.user_id = $1 AND t.created_at >= $2
+        WHERE t.user_id = $1 AND t.created_at >= $2::timestamp
       ),
       budget_data AS (
         SELECT 
@@ -352,7 +356,7 @@ const exportData = TryCatch(async (req, res, next) => {
           NULL::text as source,
           NULL::text as attachment,
           NULL::text as description, 
-          b.created_at::text,
+          TO_CHAR(b.created_at, 'YYYY-MM-DD') as created_at,
           NULL::text as sender,
           NULL::text as receiver,
           NULL::text as is_expense,
@@ -360,7 +364,7 @@ const exportData = TryCatch(async (req, res, next) => {
           b.total_budget::text,
           b.current::text
         FROM budget b 
-        WHERE b.user_id = $1 AND b.created_at >= $2
+        WHERE b.user_id = $1 AND b.created_at >= $2::timestamp
       )
       SELECT * FROM expense_data
       UNION ALL
@@ -383,6 +387,9 @@ const exportData = TryCatch(async (req, res, next) => {
   } else {
     queryParams = [user.user_id, formattedDate];
   }
+
+  console.log("Formatted Date:", formattedDate);
+  console.log("Query Parameters:", queryParams);
 
   try {
     const result = await new Promise((resolve, reject) => {
@@ -468,7 +475,7 @@ const generateCSV = async (data, filepath, res, dataType) => {
 };
 
 const generatePDF = async (data, filepath, res, dataType, req) => {
-  console.log("Data for generatePDF", data.length);
+  console.log({ rowCount: data.length });
 
   if (!req || !req.user) {
     return res.status(401).json({
@@ -883,17 +890,23 @@ function createTable(doc, headers, rows, options = {}) {
     doc
       .font(config.headerFont)
       .fontSize(config.fontSize)
-      .fillColor(config.textColor)
-      .rect(config.startX, y, config.tableWidth, config.rowHeight)
-      .fillAndStroke(config.headerBgColor, config.borderColor);
+      .fillColor(config.textColor);
 
     headers.forEach((header, i) => {
-      doc.text(
-        header,
-        config.startX + i * colWidth + 5,
-        y + config.rowHeight / 3,
-        { width: colWidth - 10, align: "left" }
-      );
+      const x = config.startX + i * colWidth;
+
+      // Draw background + border
+      doc
+        .rect(x, y, colWidth, config.rowHeight)
+        .fillAndStroke(config.headerBgColor, config.borderColor);
+
+      // Add header text with better vertical alignment
+      doc.fillColor(config.textColor).text(header, x + 5, y + 8, {
+        width: colWidth - 10,
+        align: "left",
+        height: config.rowHeight - 10,
+        lineBreak: false,
+      });
     });
 
     y += config.rowHeight;
@@ -903,8 +916,8 @@ function createTable(doc, headers, rows, options = {}) {
   const addNewPageIfNeeded = () => {
     if (y + config.rowHeight > doc.page.height - config.marginBottom) {
       doc.addPage();
-      y = config.startX;
-      renderHeader();
+      y = doc.y; // 🔁 Reset Y for new page
+      renderHeader(); // ✅ Add header again at top of new page
     }
   };
 

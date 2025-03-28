@@ -26,6 +26,16 @@ const port = 3000;
 
 app.use(express.json());
 
+const cors = require("cors");
+
+app.use(
+  cors({
+    origin: "*", // Allow all origins (for debugging; restrict in production)
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
+
 app.use("/api/v1/docs", swaggerUi.serve, swaggerUi.setup(specs));
 
 app.use("/api/v1/users", userRoute);

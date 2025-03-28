@@ -202,7 +202,11 @@ const exportData = TryCatch(async (req, res, next) => {
     fs.mkdirSync(exportsDir, { recursive: true });
   }
 
-  const { dataType = "all", dateRange = "30days", format = "csv" } = req.body;
+  const {
+    data_type: dataType = "all",
+    date_range: dateRange = "30days",
+    format = "csv",
+  } = req.body;
 
   const user = req.user;
 
@@ -475,8 +479,6 @@ const generateCSV = async (data, filepath, res, dataType) => {
 };
 
 const generatePDF = async (data, filepath, res, dataType, req) => {
-  console.log({ rowCount: data.length });
-
   if (!req || !req.user) {
     return res.status(401).json({
       success: false,

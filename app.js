@@ -2,7 +2,7 @@ import "dotenv/config";
 
 import express from "express";
 import path from "path";
-
+import cors from "cors";
 import userRoute from "./routes/user.js";
 import bankRoute from "./routes/bank.js";
 import walletRoute from "./routes/wallet.js";
@@ -25,8 +25,6 @@ const app = express();
 const port = 3000;
 
 app.use(express.json());
-
-const cors = require("cors");
 
 app.use(
   cors({

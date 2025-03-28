@@ -28,11 +28,15 @@ app.use(express.json());
 
 app.use(
   cors({
-    origin: "*", // Allow all origins (for debugging; restrict in production)
-    methods: ["GET", "POST", "PUT", "DELETE"],
+    origin: "*", // Allows all origins (Change this in production)
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true, // Allows sending cookies if needed
   })
 );
+
+// Handle Preflight (OPTIONS) Requests for CORS
+app.options("*", cors());
 
 app.use("/api/v1/docs", swaggerUi.serve, swaggerUi.setup(specs));
 

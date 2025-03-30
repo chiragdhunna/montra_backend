@@ -187,15 +187,6 @@ const getBudgetByMonth = TryCatch(async (req, res, next) => {
     );
   });
 
-  // If no budgets found for the month, return empty array with a message
-  if (results.length === 0) {
-    return res.status(200).json({
-      success: true,
-      message: `No budgets found for month ${month}`,
-      budgets: [],
-    });
-  }
-
   res.status(200).json({
     budgets: results,
   });

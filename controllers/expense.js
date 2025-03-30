@@ -311,10 +311,10 @@ const getExpenseStats = TryCatch(async (req, res, next) => {
   // ✅ Final response
   res.json({
     summary: {
-      today: parseInt(summary.today),
-      week: parseInt(summary.week),
-      month: parseInt(summary.month),
-      year: parseInt(summary.year),
+      today: summary.today ? parseInt(summary.today) : 0,
+      week: summary.week ? parseInt(summary.week) : 0,
+      month: summary.month ? parseInt(summary.month) : 0,
+      year: summary.year ? parseInt(summary.year) : 0,
     },
     frequency,
   });

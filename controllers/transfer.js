@@ -101,13 +101,7 @@ const getAllTransfers = TryCatch(async (req, res, next) => {
     });
   });
 
-  if (results.length === 0) {
-    return next(new ErrorHandler("No transfers found", 404));
-  }
-
   res.status(200).json({
-    success: true,
-    count: results.length,
     transfers: results,
   });
 });
